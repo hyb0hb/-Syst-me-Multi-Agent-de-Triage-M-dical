@@ -1,0 +1,15 @@
+# Environnements Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Datasets (trop lourds pour GitHub) : voir data/README.md
+data/*
+!data/README.md
+
+# Divers
+.DS_Store
+.vscode/
+*.log
