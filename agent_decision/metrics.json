@@ -1,30 +1,43 @@
 {
-  "roc_auc": 0.9419623860182371,
+  "roc_auc": 0.8214226666666667,
+  "pr_auc": 0.9197069351144388,
+  "brier_score": 0.17783699777099687,
+  "coefficients": {
+    "image": 2.8679725945519468,
+    "clinique": 4.205891699772553,
+    "intercept": -3.0158995673942846
+  },
   "report": {
-    "0": {
-      "precision": 0.9217002237136466,
-      "recall": 0.7357142857142858,
-      "f1-score": 0.8182720953326713,
-      "support": 560.0
+    "Non urgent": {
+      "precision": 0.4775212636695018,
+      "recall": 0.786,
+      "f1-score": 0.5941043083900227,
+      "support": 500.0
     },
-    "1": {
-      "precision": 0.8594491927825261,
-      "recall": 0.9627659574468085,
-      "f1-score": 0.9081786251881585,
-      "support": 940.0
-    },
-    "accuracy": 0.878,
-    "macro avg": {
-      "precision": 0.8905747082480864,
-      "recall": 0.8492401215805472,
-      "f1-score": 0.863225360260415,
+    "Urgent": {
+      "precision": 0.9090909090909091,
+      "recall": 0.7133333333333334,
+      "f1-score": 0.7994023160254016,
       "support": 1500.0
+    },
+    "accuracy": 0.7315,
+    "macro avg": {
+      "precision": 0.6933060863802054,
+      "recall": 0.7496666666666667,
+      "f1-score": 0.6967533122077121,
+      "support": 2000.0
     },
     "weighted avg": {
-      "precision": 0.8826895776634777,
-      "recall": 0.878,
-      "f1-score": 0.8746135207087766,
-      "support": 1500.0
+      "precision": 0.8011984977355572,
+      "recall": 0.7315,
+      "f1-score": 0.7480778141165568,
+      "support": 2000.0
     }
+  },
+  "methodology": {
+    "agent_type": "Hierarchical Triage Supervisor (Late Stacking Orchestration)",
+    "training_sampling": "Balanced 4-Quadrant Stratified Sampling",
+    "cross_patient_paired": false,
+    "warning": "Prototype experimental - non valide pour diagnostic clinique in vivo."
   }
 }
