@@ -16,10 +16,9 @@ env/
 data/*
 !data/README.md
 
-# ── Modèles entraînés (volumeux — reconstruire via train_*.py) ─
-agent_image/model_cnn.keras
-agent_clinique/model_rf.joblib
-agent_decision/model_lr.joblib
+# ── Modèles entraînés (inclus dans Git — nécessaires au démarrage) ─
+# Note : model_cnn.keras ~21 MB — utiliser Git LFS si dépasse la limite GitHub
+# git lfs track "*.keras" "*.joblib"
 
 # ── Sorties d'entraînement (CSV de prédictions) ─────────────
 agent_image/preds_test.csv
