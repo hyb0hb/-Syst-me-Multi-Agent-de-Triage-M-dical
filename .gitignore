@@ -1,15 +1,40 @@
-# Environnements Python
+# ============================================================
+# .gitignore — Système Multi-Agent de Triage Médical
+# ============================================================
+
+# ── Environnements Python ───────────────────────────────────
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .venv/
 venv/
+env/
+.env
 .ipynb_checkpoints/
 
-# Datasets (trop lourds pour GitHub) : voir data/README.md
+# ── Datasets (trop lourds pour GitHub — voir data/README.md) ─
 data/*
 !data/README.md
 
-# Divers
+# ── Modèles entraînés (volumeux — reconstruire via train_*.py) ─
+agent_image/model_cnn.keras
+agent_clinique/model_rf.joblib
+agent_decision/model_lr.joblib
+
+# ── Sorties d'entraînement (CSV de prédictions) ─────────────
+agent_image/preds_test.csv
+agent_clinique/preds_test.csv
+
+# ── Fichiers historiques triage (générés à l'exécution) ──────
+data/historique_triages.json
+
+# ── Outils & IDE ────────────────────────────────────────────
 .DS_Store
 .vscode/
+.idea/
 *.log
+*.tmp
+
+# ── Uploads temporaires FastAPI ─────────────────────────────
+uploads/
+*.upload

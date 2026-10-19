@@ -31,6 +31,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnStartAnalysis = document.getElementById("btnStartAnalysis");
     const btnSpinner = document.getElementById("btnSpinner");
     const presetChips = document.querySelectorAll(".preset-chip-btn");
+    const btnRandomDataset = document.getElementById("btnRandomDataset");
+    const datasetSourceBanner = document.getElementById("datasetSourceBanner");
+    const datasetSourceText = document.getElementById("datasetSourceText");
 
     // Elements : Form Inputs
     const ageInput = document.getElementById("ageInput");
@@ -210,16 +213,80 @@ document.addEventListener("DOMContentLoaded", () => {
         xrayPreviewImg.style.display = "block";
         previewEmptyState.style.display = "none";
 
+        if (datasetSourceBanner) datasetSourceBanner.style.display = "none";
+        if (btnRandomDataset) btnRandomDataset.classList.remove("active");
+
         setWorkflowStep(1);
     }
 
     presetChips.forEach((btn) => {
         btn.addEventListener("click", () => {
+            if (btn.id === "btnRandomDataset") return;
             presetChips.forEach((b) => b.classList.remove("active"));
             btn.classList.add("active");
             applyPreset(btn.dataset.preset);
         });
     });
+
+    // Random Case Loader from Kaggle Datasets (data/)
+    async function loadRandomDatasetCase() {
+        if (!btnRandomDataset) return;
+        const originalText = btnRandomDataset.innerHTML;
+        btnRandomDataset.innerHTML = `<span>⏳ Loading case...</span>`;
+        btnRandomDataset.disabled = true;
+
+        try {
+            const res = await fetch("/api/random-case");
+            if (!res.ok) throw new Error("Erreur de chargement du cas aléatoire.");
+            const data = await res.json();
+
+            // Populate clinical inputs
+            ageInput.value = data.age;
+            bmiInput.value = data.bmi || 24.5;
+            genderSelect.value = data.gender;
+            smokingSelect.value = data.smoking;
+            hypertensionSelect.value = String(data.hypertension);
+            heartDiseaseSelect.value = String(data.heart_disease);
+            glucoseInput.value = data.glucose;
+            everMarriedInput.value = data.ever_married;
+            workTypeInput.value = data.work_type;
+            residenceInput.value = data.residence;
+
+            // Reset user upload
+            uploadedFile = null;
+            imageFileInput.value = "";
+
+            // Update sample image token and preview
+            currentSampleName = data.sample_token;
+            sampleImageNameInput.value = data.sample_token;
+
+            xrayPreviewImg.src = data.image_url;
+            xrayPreviewImg.style.display = "block";
+            previewEmptyState.style.display = "none";
+
+            // Show ground truth banner
+            if (datasetSourceBanner && datasetSourceText) {
+                datasetSourceText.textContent = data.ground_truth_summary;
+                datasetSourceBanner.style.display = "flex";
+            }
+
+            // Update active states
+            presetChips.forEach((b) => b.classList.remove("active"));
+            btnRandomDataset.classList.add("active");
+
+            setWorkflowStep(1);
+        } catch (err) {
+            console.error("Failed to load random case:", err);
+            alert("Erreur lors du tirage aléatoire dans le dataset : " + err.message);
+        } finally {
+            btnRandomDataset.innerHTML = originalText;
+            btnRandomDataset.disabled = false;
+        }
+    }
+
+    if (btnRandomDataset) {
+        btnRandomDataset.addEventListener("click", loadRandomDatasetCase);
+    }
 
     // ========================================================
     // 5. Drag-and-Drop Chest X-Ray Upload
@@ -277,6 +344,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Remove active preset highlight
         presetChips.forEach((b) => b.classList.remove("active"));
+        if (datasetSourceBanner) datasetSourceBanner.style.display = "none";
     }
 
     btnClearPreview.addEventListener("click", (e) => {
@@ -288,6 +356,8 @@ document.addEventListener("DOMContentLoaded", () => {
         xrayPreviewImg.src = "";
         xrayPreviewImg.style.display = "none";
         previewEmptyState.style.display = "flex";
+        if (datasetSourceBanner) datasetSourceBanner.style.display = "none";
+        if (btnRandomDataset) btnRandomDataset.classList.remove("active");
     });
 
     // ========================================================
