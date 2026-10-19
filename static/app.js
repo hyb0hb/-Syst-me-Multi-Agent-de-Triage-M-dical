@@ -80,12 +80,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const chartValRf = document.getElementById("chartValRf");
     const chartValLr = document.getElementById("chartValLr");
 
-    // Chart Data Models (Reference evaluation metrics)
+    // Chart Data Models (Reference evaluation metrics from training)
     const metricsData = {
-        roc_auc: { cnn: 0.965, rf: 0.825, lr: 0.821 },
-        precision: { cnn: 0.824, rf: 0.190, lr: 0.910 },
-        recall: { cnn: 0.985, rf: 0.680, lr: 0.713 },
-        f1: { cnn: 0.897, rf: 0.297, lr: 0.800 }
+        roc_auc: { cnn: 0.965, rf: 0.846, lr: 0.879 },
+        precision: { cnn: 0.824, rf: 0.151, lr: 0.924 },
+        recall: { cnn: 0.985, rf: 0.800, lr: 0.685 },
+        f1: { cnn: 0.897, rf: 0.254, lr: 0.787 }
     };
 
     // ========================================================
@@ -99,16 +99,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 apiStatusDot.className = "status-dot green";
                 apiStatusText.textContent = "FastAPI · Connected";
 
-                // Update Reference Cards dynamically if available
+                // Update Reference Cards & Chart dynamically
                 if (data.image && data.image.roc_auc) {
-                    document.getElementById("refCnnAuc").textContent = data.image.roc_auc.toFixed(3);
+                    const cnnVal = parseFloat(data.image.roc_auc);
+                    document.getElementById("refCnnAuc").textContent = cnnVal.toFixed(3);
+                    metricsData.roc_auc.cnn = cnnVal;
                 }
                 if (data.clinique && data.clinique.roc_auc) {
-                    document.getElementById("refRfAuc").textContent = data.clinique.roc_auc.toFixed(3);
+                    const rfVal = parseFloat(data.clinique.roc_auc);
+                    document.getElementById("refRfAuc").textContent = rfVal.toFixed(3);
+                    metricsData.roc_auc.rf = rfVal;
                 }
                 if (data.decision && data.decision.roc_auc) {
-                    document.getElementById("refLrAuc").textContent = data.decision.roc_auc.toFixed(3);
+                    const lrVal = parseFloat(data.decision.roc_auc);
+                    document.getElementById("refLrAuc").textContent = lrVal.toFixed(3);
+                    metricsData.roc_auc.lr = lrVal;
                 }
+                updateChart("roc_auc");
             } else {
                 throw new Error("HTTP error " + res.status);
             }
