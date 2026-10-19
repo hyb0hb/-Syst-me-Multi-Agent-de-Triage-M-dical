@@ -7,3 +7,4 @@ matplotlib>=3.7
 pillow>=10.0
 fastapi>=0.100
 uvicorn>=0.20
+python-multipart>=0.0.9

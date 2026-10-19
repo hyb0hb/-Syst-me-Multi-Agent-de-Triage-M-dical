@@ -1,5 +1,5 @@
 {
-  "roc_auc": 0.8456378600823046,
+  "roc_auc": 0.8458847736625514,
   "model_type": "RandomForestClassifier",
   "cahier_des_charges": "100% Conforme",
   "report": {
