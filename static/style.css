@@ -825,6 +825,76 @@ body::after {
     border-color: var(--primary-navy);
 }
 
+.preset-chip-btn.btn-random-case {
+    background: linear-gradient(135deg, #E8F9F8 0%, #D4F4F1 100%);
+    border: 1px solid #23B8B0;
+    color: #0E6B65;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 1px 4px rgba(35, 184, 176, 0.15);
+}
+
+.preset-chip-btn.btn-random-case:hover {
+    background: linear-gradient(135deg, #23B8B0 0%, #17968F 100%);
+    border-color: #17968F;
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(35, 184, 176, 0.3);
+    transform: translateY(-1px);
+}
+
+.preset-chip-btn.btn-random-case.active {
+    background: linear-gradient(135deg, #17968F 0%, #0E6B65 100%);
+    color: #FFFFFF;
+    border-color: #0E6B65;
+}
+
+.dataset-source-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #F0FBF9;
+    border: 1px solid #A2E5DE;
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 12px;
+    font-size: 0.72rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.source-tag-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+}
+
+.source-tag {
+    background: #23B8B0;
+    color: #FFFFFF;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.source-text {
+    font-weight: 600;
+    color: #0E6B65;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.source-info-tip {
+    font-size: 0.65rem;
+    color: #558784;
+    white-space: nowrap;
+}
+
 .form-section-header {
     display: flex;
     align-items: center;

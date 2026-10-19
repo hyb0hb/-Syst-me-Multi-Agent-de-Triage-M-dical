@@ -346,7 +346,19 @@
                                     <button type="button" class="preset-chip-btn" data-preset="cas_avc">Stroke</button>
                                     <button type="button" class="preset-chip-btn" data-preset="cas_critique_mixte">Mixed</button>
                                     <button type="button" class="preset-chip-btn" data-preset="cas_routine">Routine</button>
+                                    <button type="button" class="preset-chip-btn btn-random-case" id="btnRandomDataset" title="Tirer un vrai patient et sa radiographie depuis data/">
+                                        🎲 Random from Dataset
+                                    </button>
                                 </div>
+                            </div>
+
+                            <!-- Real Dataset Case Indicator Banner -->
+                            <div class="dataset-source-banner" id="datasetSourceBanner" style="display: none;">
+                                <div class="source-tag-group">
+                                    <span class="source-tag">DATASET REAL CASE</span>
+                                    <span class="source-text" id="datasetSourceText">Patient #...</span>
+                                </div>
+                                <span class="source-info-tip" title="Données réelles extraites de healthcare-dataset-stroke-data.csv et chest_xray/test">ℹ️ Real ground truth</span>
                             </div>
 
                             <form id="assessmentForm" class="assessment-form">

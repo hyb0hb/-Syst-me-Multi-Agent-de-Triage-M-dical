@@ -10,6 +10,10 @@ Exemples d'utilisation :
     py demo.py --image static/samples/normal.jpg --age 72 --gender Female --hypertension 1 \
                --heart-disease 1 --glucose 215.3 --bmi 34.8 --smoking "formerly smoked"
 
+3. Tirage aléatoire direct depuis le dataset data/ :
+    py demo.py --random             # Teste 1 cas aléatoire
+    py demo.py --random 5           # Teste 5 cas aléatoires
+
 Valeurs admises :
     gender        : Male | Female | Other
     work-type     : Private | Self-employed | Govt_job | children | Never_worked
@@ -105,15 +109,99 @@ def validate_inputs(args, image_path):
         raise ValueError(f"Statut tabagique invalide '{args.smoking}'.")
 
 
+def run_random_mode(n_cases=1, quadrant="any", seed=None):
+    """Tire aléatoirement des cas dans data/ et affiche la délibération comparative."""
+    import random
+    data_dir = ROOT / "data"
+    stroke_csv = data_dir / "healthcare-dataset-stroke-data.csv"
+    xray_test_dir = data_dir / "chest_xray" / "test"
+
+    if not stroke_csv.exists() or not xray_test_dir.exists():
+        print(f"\n[ERREUR] Datasets Kaggle introuvables dans {data_dir}/", file=sys.stderr)
+        print("Téléchargez les données conformément à data/README.md pour le mode --random.", file=sys.stderr)
+        sys.exit(1)
+
+    df_stroke = pd.read_csv(stroke_csv)
+    df_stroke["bmi"] = pd.to_numeric(df_stroke["bmi"], errors="coerce")
+    normal_imgs = list((xray_test_dir / "NORMAL").glob("*.jpeg")) + list((xray_test_dir / "NORMAL").glob("*.jpg"))
+    pneu_imgs = list((xray_test_dir / "PNEUMONIA").glob("*.jpeg")) + list((xray_test_dir / "PNEUMONIA").glob("*.jpg"))
+
+    rng = random.Random(seed)
+    print("=" * 65)
+    print(f" DÉMONSTRATION ALÉATOIRE SUR LE DATASET RÉEL ({n_cases} cas)")
+    print("=" * 65)
+
+    for i in range(1, n_cases + 1):
+        if quadrant in ("Q01", "Q11"):
+            sub = df_stroke[df_stroke["stroke"] == 1]
+        elif quadrant in ("Q00", "Q10"):
+            sub = df_stroke[df_stroke["stroke"] == 0]
+        else:
+            sub = df_stroke
+
+        pt = sub.sample(1, random_state=rng.randint(0, 100000)).iloc[0]
+
+        if quadrant in ("Q10", "Q11"):
+            img_path = rng.choice(pneu_imgs)
+            img_label = "PNEUMONIA"
+        elif quadrant in ("Q00", "Q01"):
+            img_path = rng.choice(normal_imgs)
+            img_label = "NORMAL"
+        else:
+            if rng.random() < 0.5:
+                img_path = rng.choice(normal_imgs)
+                img_label = "NORMAL"
+            else:
+                img_path = rng.choice(pneu_imgs)
+                img_label = "PNEUMONIA"
+
+        clinical = {
+            "age": float(pt["age"]),
+            "avg_glucose_level": float(pt["avg_glucose_level"]),
+            "bmi": float(pt["bmi"]) if not pd.isna(pt["bmi"]) else 24.5,
+            "hypertension": int(pt["hypertension"]),
+            "heart_disease": int(pt["heart_disease"]),
+            "gender": str(pt["gender"]),
+            "ever_married": str(pt["ever_married"]),
+            "work_type": str(pt["work_type"]),
+            "Residence_type": str(pt["Residence_type"]),
+            "smoking_status": str(pt["smoking_status"]),
+        }
+
+        true_stroke = int(pt["stroke"])
+        expected_urgent = (img_label == "PNEUMONIA") or (true_stroke == 1)
+
+        p_img = agent_image(img_path)
+        p_clin = agent_clinique(clinical)
+        p_final, niveau, c_img, c_clin, intercept = agent_decision(p_img, p_clin)
+        is_urgent_pred = (p_final >= 0.40)
+        concorde = (is_urgent_pred == expected_urgent)
+
+        print(f"\n--- CAS #{i}/{n_cases} ---")
+        print(f" Patient #{int(pt['id'])} : {pt['gender']}, {pt['age']:.0f} ans | Glycémie : {pt['avg_glucose_level']} mg/dL | AVC réel : {'OUI (stroke=1)' if true_stroke else 'NON'}")
+        print(f" Cliché : {img_path.name} | Diagnostic réel : {img_label}")
+        print(f"  -> Agent 1 (Vision)     : P(pneumonie) = {p_img:5.1%}")
+        print(f"  -> Agent 2 (Clinique)   : P(AVC)       = {p_clin:5.1%}")
+        print(f"  -> Agent 3 (Consensus)  : Score Global = {p_final:5.1%}")
+        print(f"  => DÉCISION FINALE      : {niveau}")
+        print(f"  => Vérité Terrain       : {'[SUCCÈS CONCORDANT]' if concorde else '[DISCORDANCE CLINIQUE]'}")
+
+    print("\n" + "=" * 65)
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawTextHelpFormatter
     )
+    ap.add_argument("--random", type=int, nargs="?", const=1, default=None,
+                    help="Tester un ou plusieurs cas tirés aléatoirement dans le dataset data/ (défaut: 1)")
+    ap.add_argument("--quadrant", default="any", choices=["any", "Q00", "Q10", "Q01", "Q11"],
+                    help="Filtrer le tirage aléatoire sur un quadrant pivot (Q00, Q10, Q01, Q11)")
     ap.add_argument("--image", default=None, help="Chemin du cliché radiographique (JPEG/PNG)")
     ap.add_argument("--sample", default=None, choices=["normal", "pneumonia"],
                     help="Utiliser un échantillon prêt à l'emploi (normal ou pneumonia)")
-    ap.add_argument("--age", type=float, required=True, help="Âge du patient (0-125)")
+    ap.add_argument("--age", type=float, default=None, help="Âge du patient (0-125)")
     ap.add_argument("--gender", default="Male", choices=["Male", "Female", "Other"])
     ap.add_argument("--hypertension", type=int, default=0, choices=[0, 1])
     ap.add_argument("--heart-disease", type=int, default=0, choices=[0, 1])
@@ -121,11 +209,24 @@ def main():
     ap.add_argument("--work-type", default="Private",
                     choices=["Private", "Self-employed", "Govt_job", "children", "Never_worked"])
     ap.add_argument("--residence", default="Urban", choices=["Urban", "Rural"])
-    ap.add_argument("--glucose", type=float, required=True, help="Glycémie moyenne en mg/dL (20-700)")
+    ap.add_argument("--glucose", type=float, default=None, help="Glycémie moyenne en mg/dL (20-700)")
     ap.add_argument("--bmi", type=float, default=None, help="Indice de masse corporelle (10-100)")
     ap.add_argument("--smoking", default="never smoked",
                     choices=["formerly smoked", "never smoked", "smokes", "Unknown"])
     args = ap.parse_args()
+
+    # Mode tirage aléatoire direct depuis le dataset
+    if args.random is not None:
+        run_random_mode(n_cases=args.random, quadrant=args.quadrant)
+        sys.exit(0)
+
+    # Mode manuel : vérification de la présence des champs obligatoires
+    if args.age is None or args.glucose is None:
+        print("\n[ERREUR] Les paramètres --age et --glucose sont obligatoires en mode manuel.", file=sys.stderr)
+        print("💡 Astuce : Utilisez --random pour tester directement avec des cas aléatoires du dataset :", file=sys.stderr)
+        print("   py demo.py --random", file=sys.stderr)
+        print("   py demo.py --random 5\n", file=sys.stderr)
+        sys.exit(1)
 
     # Détermination de l'image
     if args.sample:
