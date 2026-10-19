@@ -1,109 +1,63 @@
-# Système Multi-Agent de Triage Médical
+# Système Multi-Agent de Triage Médical — Agent 2 : Clinique
 
-Projet d'Intelligence Artificielle et Systèmes Multi-Agents (Data Mining & Deep Learning).
-Trois agents spécialisés collaborent pour produire une orientation de triage hospitalier automatisée combinant imagerie médicale et données cliniques.
-
-> **Avertissement déontologique :** Prototype universitaire à visée de recherche et de démonstration. Ne constitue pas un dispositif médical validé.
-
----
-
-## Architecture Générale
-
-```
-  Radiographie ──────► [Agent 1 : Vision CNN MobileNetV2] ─────► P(pneumonie) ─┐
-                                                                               ├─► [Agent 3 : Consensus & Triage
-  Données cliniques ─► [Agent 2 : Clinique Random Forest] ────► P(AVC) ────────┘    Régression Logistique L2]
-                                                                                     │
-                                                                                     ▼
-                                                                     URGENT / À SURVEILLER / NON URGENT
-                                                                    (Priorités SAU inspirées de MTS / ESI)
-```
+> **Branche de travail dédiée :** Agent 2 (Random Forest — Risque Clinique AVC)  
+> **Auteur :** Niykven (`aniaa199a@gmail.com`)  
+> **Dataset :** *Stroke Prediction Dataset* (Kaggle)
 
 ---
 
-## Structure du Dépôt
+## 1. Description du Module
+L'**Agent 2** est responsable de l'évaluation du risque neuro-vasculaire et cardiovasculaire (AVC) à partir des données cliniques et physiologiques du patient.
 
-```
-├── agent_image/        Agent 1 : CNN MobileNetV2 Transfer Learning (train_cnn.py, model_cnn.keras)
-├── agent_clinique/     Agent 2 : Random Forest avec ColumnTransformer (train_rf.py, model_rf.joblib)
-├── agent_decision/     Agent 3 : Régression Logistique Superviseur (train_decision.py, model_lr.joblib)
-├── tests/              Banc de tests automatisés (test_system.py)
-├── rapport/            Rapport technique complet (rapport_technique.md) et plan (plan_rapport.md)
-├── static/             Frontend Web réactif (index.html, style.css, app.js, samples/)
-├── data/               Instructions pour télécharger les datasets Kaggle bruts (README.md)
-├── demo.py             Démonstrateur en ligne de commande (CLI)
-├── server.py           Serveur API REST FastAPI + Interface Web
-└── requirements.txt    Dépendances Python du projet
+Ce module s'intègre dans le Système Multi-Agent global de Triage Médical (fusionné sur la branche `main`).
+
+---
+
+## 2. Spécifications Techniques
+
+* **Algorithme :** `RandomForestClassifier` (Scikit-Learn, 100 arbres de décision, profondeur max contrôlée).
+* **Gestion du déséquilibre de classe :** Configuration `class_weight='balanced'` pour maximiser la sensibilité sur les cas d'AVC rares (4.9 % de prévalence).
+* **Prétraitement :**
+  * Imputation de la médiane pour l'IMC (`bmi`).
+  * Encodage One-Hot pour les variables qualitatives (`gender`, `work_type`, `Residence_type`, `smoking_status`).
+  * Mise à l'échelle standard (`StandardScaler`) des variables continues.
+
+---
+
+## 3. Métriques de Performance Certifiées
+
+| Métrique | Valeur | Interprétation clinique |
+|---|---|---|
+| **ROC-AUC** | **0.846** | Excellente capacité de discrimination globale. |
+| **Rappel (Sensibilité AVC)** | **80.0 %** | Détection prioritaire de 4 AVC sur 5 (sécurité du patient). |
+| **Spécificité (Sains)** | **76.9 %** | Filtrage efficace des profils ambulatoires non urgents. |
+| **F1-Score Global Pondéré** | **83.4 %** | Haute performance moyenne sur l'ensemble de la population. |
+| **F1-Score AVC (Classe cible)** | **25.4 %** | Compromis mathématique lié à la rareté de la maladie (4.9 % de prévalence). |
+
+---
+
+## 4. Structure de la Branche
+
+```text
+├── agent_clinique/
+│   ├── model_rf.joblib      # Modèle Random Forest sérialisé
+│   ├── train_rf.py          # Script d'entraînement et d'évaluation
+│   └── metrics.json         # Métriques certifiées exportées
+├── agent_image/             # [Réservé Agent 1 : géré sur sa branche dédiée]
+├── agent_decision/          # [Réservé Agent 3 : géré sur sa branche dédiée]
+├── tests/
+│   └── test_agent_clinique.py # Banc de tests automatisés de l'Agent 2
+├── data/
+│   └── README.md            # Spécifications des datasets Kaggle
+├── requirements.txt         # Dépendances Python
+└── README.md                # Documentation de l'Agent 2
 ```
 
 ---
 
-## Installation Rapide
+## 5. Exécution des Tests Unitaires
 
 ```bash
-# 1. Cloner et entrer dans le dossier
-git clone <url-du-depot>
-cd -Syst-me-Multi-Agent-de-Triage-M-dical
-
-# 2. Créer l'environnement virtuel (Python 3.10 à 3.13)
-py -m venv .venv
-.venv\Scripts\activate          # Sur Linux/macOS : source .venv/bin/activate
-
-# 3. Installer les dépendances
-pip install -r requirements.txt
+py -m unittest tests/test_agent_clinique.py -v
 ```
-
-> **Note :** Les modèles entraînés (`.keras`, `.joblib`), les métriques certifiées (`metrics.json`) et les images d'exemples (`static/samples/`) sont **déjà inclus dans le dépôt**. Vous pouvez exécuter les tests et lancer la démo immédiatement sans avoir à télécharger les volumineux datasets bruts.
-
----
-
-## Utilisation et Démonstration
-
-### 1. Lancer la Suite de Tests Automatisés
-```bash
-py tests/test_system.py
-```
-*Valide automatiquement 11 points critiques : équilibre des poids, cohérence des quadrants cliniques, filtrage des entrées physiologiques, détection des anomalies.*
-
-### 2. Exécuter la Démonstration en Ligne de Commande (CLI)
-```bash
-# Exemple 1 : Suspicion d'urgence respiratoire
-py demo.py --sample pneumonia --age 54 --gender Male --glucose 98.4 --bmi 26.2
-
-# Exemple 2 : Suspicion d'AVC avec constantes tabulaires
-py demo.py --sample normal --age 72 --gender Female --hypertension 1 --heart-disease 1 --glucose 215.3 --bmi 34.8
-```
-
-### 3. Lancer l'Application Web Interactive
-```bash
-py server.py
-```
-Puis ouvrez votre navigateur sur : **[http://127.0.0.1:8000](http://127.0.0.1:8000)**.
-- Interface réactive et rassurante inspirée de Qare.fr.
-- 4 dossiers patients préenregistrés pour tester immédiatement les scénarios cliniques.
-- Formulaire interactif avec curseurs dynamiques et téléversement de radiographies.
-- Visualisation en temps réel de la jauge d'urgence et des délibérations de chaque agent.
-
----
-
-## Réentraînement des Modèles (Optionnel)
-
-Si vous téléchargez les datasets complets conformément à `data/README.md` :
-
-```bash
-# 1. Réentraînement de l'Agent Image (Recommandé sur GPU ou Google Colab)
-py agent_image/train_cnn.py
-
-# 2. Réentraînement de l'Agent Clinique (Rapide sur CPU)
-py agent_clinique/train_rf.py
-
-# 3. Calibrage de l'Agent Décisionnel par quadrants équilibrés
-py agent_decision/train_decision.py
-```
-
----
-
-## Livrable Académique
-
-Le rapport technique complet et structuré est consultable dans :
-👉 **[rapport/rapport_technique.md](rapport/rapport_technique.md)**
+*(Résultat : 5 tests réussis sur 5 — conformité 100 %).*
