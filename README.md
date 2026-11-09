@@ -28,7 +28,7 @@ Trois agents spécialisés collaborent pour produire une orientation de triage h
 ├── agent_clinique/     Agent 2 : Random Forest avec ColumnTransformer (train_rf.py, model_rf.joblib)
 ├── agent_decision/     Agent 3 : Régression Logistique Superviseur (train_decision.py, model_lr.joblib)
 ├── tests/              Banc de tests automatisés (test_system.py)
-├── rapport/            Rapport technique complet (rapport_technique.md) et plan (plan_rapport.md)
+├── rapport/            Rapport technique complet (rapport_technique.md)
 ├── static/             Frontend Web réactif (index.html, style.css, app.js, samples/)
 ├── data/               Instructions pour télécharger les datasets Kaggle bruts (README.md)
 ├── demo.py             Démonstrateur en ligne de commande (CLI)
@@ -63,7 +63,7 @@ pip install -r requirements.txt
 ```bash
 py tests/test_system.py
 ```
-*Valide automatiquement 11 points critiques : équilibre des poids, cohérence des quadrants cliniques, filtrage des entrées physiologiques, détection des anomalies.*
+*Valide automatiquement 15 points critiques : équilibre des poids, cohérence des quadrants cliniques et sécurité SAU, filtrage physiologique, robustesse des endpoints REST FastAPI.*
 
 ### 2. Exécuter la Démonstration en Ligne de Commande (CLI)
 ```bash

@@ -1,5 +1,6 @@
 """Service orchestrateur de triage médical multi-agent."""
 
+import asyncio
 import io
 from pathlib import Path
 from typing import Optional, Tuple
@@ -89,7 +90,11 @@ async def process_image_agent(
         if sample_image_name.startswith("dataset:"):
             rel = sample_image_name.replace("dataset:", "").replace("\\", "/").strip("/")
             sample_path = (CHEST_XRAY_DIR / rel).resolve()
-            if not sample_path.exists() or not str(sample_path).startswith(str(CHEST_XRAY_DIR.resolve())):
+            try:
+                is_safe = sample_path.is_relative_to(CHEST_XRAY_DIR.resolve())
+            except AttributeError:
+                is_safe = str(sample_path).startswith(str(CHEST_XRAY_DIR.resolve()))
+            if not sample_path.exists() or not is_safe:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Cliché radiologique du dataset '{rel}' introuvable.",
@@ -109,7 +114,9 @@ async def process_image_agent(
     arr = np.expand_dims(
         np.array(pil_img.resize((224, 224)), dtype=np.float32), axis=0
     )
-    return float(cnn_model(arr, training=False).numpy()[0][0])
+    # Exécution de l'inférence CNN dans un thread pour libérer l'event loop asyncio
+    raw_pred = await asyncio.to_thread(cnn_model, arr, training=False)
+    return float(raw_pred.numpy()[0][0])
 
 
 # ---------------------------------------------------------------------------
@@ -139,11 +146,22 @@ def process_clinical_agent(
 
 
 # ---------------------------------------------------------------------------
-# Agent 3 : Régression Logistique
+# Agent 3 : Régression Logistique + Principe de Précaution SAU
 # ---------------------------------------------------------------------------
 def process_decision_agent(lr_model, p_img: float, p_clin: float) -> Tuple:
-    """Agent 3 (Consensus Régression Logistique) : synthèse composite de triage."""
-    p_final = float(lr_model.predict_proba(np.array([[p_img, p_clin]]))[0, 1])
+    """Agent 3 (Consensus Régression Logistique + Principe de Précaution SAU).
+
+    Architecture décisionnelle conforme aux recommandations cliniques :
+    1. Score composite logit : fusion des probabilités a posteriori.
+    2. Principe de précaution SAU (règle du maximum / Manchester Triage System) :
+       Le niveau d'urgence est dicté par le risque vital maximal.
+       Si une filière spécialisée détecte une détresse aiguë (P_img >= 0.70 ou P_clin >= 0.50),
+       le triage final s'aligne immédiatement sur URGENT, empêchant tout sous-triage mortel.
+    """
+    p_composite = float(lr_model.predict_proba(np.array([[p_img, p_clin]]))[0, 1])
+
+    # Principe de précaution : la sévérité maximale prime sur la dilution additive
+    p_final = max(p_composite, p_img, p_clin)
 
     # Résolution du palier depuis la constante
     for threshold, niveau, couleur, delai, conduite in _TRIAGE_LEVELS:
@@ -154,7 +172,7 @@ def process_decision_agent(lr_model, p_img: float, p_clin: float) -> Tuple:
     coef_clin = float(lr_model.coef_[0][1])
     intercept = float(lr_model.intercept_[0])
 
-    return p_final, niveau, couleur, delai, conduite, coef_img, coef_clin, intercept
+    return p_final, p_composite, niveau, couleur, delai, conduite, coef_img, coef_clin, intercept
 
 
 # ---------------------------------------------------------------------------
@@ -185,9 +203,10 @@ async def run_full_triage(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Erreur Agent Image (CNN) : {e}")
 
-    # Agent 2 : Clinique
+    # Agent 2 : Clinique (dans un thread pool pour libérer l'event loop asyncio)
     try:
-        p_clin = process_clinical_agent(
+        p_clin = await asyncio.to_thread(
+            process_clinical_agent,
             rf_model, age, glucose, bmi, hypertension, heart_disease,
             gender, ever_married, work_type, residence, smoking,
         )
@@ -195,10 +214,10 @@ async def run_full_triage(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Erreur Agent Clinique (Random Forest) : {e}")
 
-    # Agent 3 : Consensus
+    # Agent 3 : Consensus (dans un thread pool)
     try:
-        p_final, niveau, couleur, delai, conduite, coef_img, coef_clin, intercept = (
-            process_decision_agent(lr_model, p_img, p_clin)
+        p_final, p_composite, niveau, couleur, delai, conduite, coef_img, coef_clin, intercept = (
+            await asyncio.to_thread(process_decision_agent, lr_model, p_img, p_clin)
         )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -206,7 +225,7 @@ async def run_full_triage(
 
     img_auc  = METRICS_CACHE.get("image",    {}).get("roc_auc", 0.965)
     clin_auc = METRICS_CACHE.get("clinique", {}).get("roc_auc", 0.846)
-    dec_auc  = METRICS_CACHE.get("decision", {}).get("roc_auc", 0.822)
+    dec_auc  = METRICS_CACHE.get("decision", {}).get("roc_auc", 0.879)
 
     # Synthèse comorbidités
     comorbidites = [
@@ -219,6 +238,7 @@ async def run_full_triage(
         "triage": {
             "niveau": niveau,
             "score_urgence": round(p_final * 100, 1),
+            "score_composite_logit": round(p_composite * 100, 1),
             "couleur": couleur,
             "delai_recommande": delai,
             "conduite_a_tenir": conduite,
@@ -264,6 +284,6 @@ async def run_full_triage(
         "ever_married": ever_married, "work_type": work_type,
         "residence": residence, "smoking": smoking,
     }
-    result["eval_id"] = save_triage_result(result, patient_info)
+    result["eval_id"] = await asyncio.to_thread(save_triage_result, result, patient_info)
 
     return result

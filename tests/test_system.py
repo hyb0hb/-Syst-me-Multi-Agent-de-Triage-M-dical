@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import joblib
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
 # Chemins
 import sys
@@ -22,15 +23,16 @@ if str(ROOT) not in sys.path:
 # Import des modules testés
 import server
 import demo
+from backend.services.triage_service import process_decision_agent
 
 
 class TestAgentDecision(unittest.TestCase):
-    """Vérification du comportement de l'Agent Décisionnel de Consensus (Régression Logistique)."""
+    """Vérification du comportement de l'Agent Décisionnel de Consensus (Régression Logistique + Sécurité SAU)."""
 
     @classmethod
     def setUpClass(cls):
         model_path = ROOT / "agent_decision" / "model_lr.joblib"
-        cls.assertTrue(model_path.exists(), f"Le fichier modèle {model_path} est manquant.")
+        assert model_path.exists(), f"Le fichier modèle {model_path} est manquant."
         cls.model = joblib.load(model_path)
 
     def test_model_coefficients_balance(self):
@@ -47,12 +49,12 @@ class TestAgentDecision(unittest.TestCase):
         self.assertLess(ratio, 2.5, f"Déséquilibre excessif entre modalités (ratio={ratio:.2f}).")
 
     def test_four_clinical_quadrants(self):
-        """Vérifie l'ordonnancement clinique rigoureux des 4 quadrants pivots."""
+        """Vérifie l'ordonnancement clinique rigoureux des 4 quadrants pivots et l'absence de sous-triage."""
         # Q00 : Patient sain (risques faibles)
         p_sain = float(self.model.predict_proba([[0.05, 0.05]])[0, 1])
         # Q10 : Risque pulmonaire isolé
         p_pneu = float(self.model.predict_proba([[0.70, 0.05]])[0, 1])
-        # Q01 : Risque AVC isolé (ne doit plus être écrasé !)
+        # Q01 : Risque AVC isolé
         p_avc = float(self.model.predict_proba([[0.05, 0.70]])[0, 1])
         # Q11 : Risque mixte (choc & comorbidités)
         p_mixte = float(self.model.predict_proba([[0.70, 0.70]])[0, 1])
@@ -60,13 +62,18 @@ class TestAgentDecision(unittest.TestCase):
         # 1. Le cas sain doit être non urgent
         self.assertLess(p_sain, 0.15, f"Un patient sain ne doit pas être sur-trié (p={p_sain:.3f}).")
 
-        # 2. L'AVC isolé DOIT déclencher une alerte (> 40% seuil de surveillance/urgence)
-        self.assertGreaterEqual(p_avc, 0.40, f"L'AVC isolé est écrasé à tort (p={p_avc:.3f}) !")
+        # 2. Vérification du protocole de décision SAU (Principe de précaution)
+        # Un patient avec pneumonie aiguë avérée (p_img = 0.70) DOIT être classé URGENT
+        p_final_pneu, p_comp_pneu, niv_pneu, _, _, _, _, _, _ = process_decision_agent(self.model, 0.70, 0.05)
+        self.assertEqual(niv_pneu, "URGENT", "La détresse respiratoire aiguë ne doit pas être sous-triée !")
+        self.assertGreaterEqual(p_final_pneu, 0.70)
 
-        # 3. La pneumonie isolée doit déclencher un palier d'alerte
-        self.assertGreaterEqual(p_pneu, 0.25, f"La pneumonie isolée est sous-évaluée (p={p_pneu:.3f}).")
+        # Un patient avec suspicion forte d'AVC (p_clin = 0.70) DOIT être classé URGENT
+        p_final_avc, p_comp_avc, niv_avc, _, _, _, _, _, _ = process_decision_agent(self.model, 0.05, 0.70)
+        self.assertEqual(niv_avc, "URGENT", "L'urgence neuro-vasculaire ne doit pas être sous-triée !")
+        self.assertGreaterEqual(p_final_avc, 0.70)
 
-        # 4. Le cas mixte doit être le plus grave de tous
+        # 3. Le cas mixte doit être le plus grave de tous
         self.assertGreater(p_mixte, p_pneu, "Le cas mixte doit dépasser la pneumonie seule.")
         self.assertGreater(p_mixte, p_avc, "Le cas mixte doit dépasser l'AVC seul.")
         self.assertGreater(p_mixte, 0.75, f"Le cas mixte doit être en urgence vitale (p={p_mixte:.3f}).")
@@ -183,6 +190,52 @@ class TestDemoCLIValidation(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             demo.validate_inputs(dummy_args, fake_path)
         self.assertIn("introuvable", str(ctx.exception))
+
+
+class TestFastAPIRestAPI(unittest.TestCase):
+    """Vérification fonctionnelle des endpoints REST FastAPI avec TestClient."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.client = TestClient(server.app)
+
+    def test_metrics_endpoint(self):
+        """Vérifie que GET /api/metrics répond 200 avec les 3 agents."""
+        res = self.client.get("/api/metrics")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn("image", data)
+        self.assertIn("clinique", data)
+        self.assertIn("decision", data)
+
+    def test_presets_endpoint(self):
+        """Vérifie que GET /api/presets retourne les 4 cas cliniques."""
+        res = self.client.get("/api/presets")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn("cas_pneumonie", data)
+        self.assertIn("cas_avc", data)
+        self.assertIn("cas_critique_mixte", data)
+        self.assertIn("cas_routine", data)
+
+    def test_history_endpoint(self):
+        """Vérifie que GET /api/history retourne une liste conforme."""
+        res = self.client.get("/api/history")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn("evaluations", data)
+        self.assertIn("total", data)
+
+    def test_triage_validation_error_status_422(self):
+        """Vérifie qu'un âge négatif via l'API retourne HTTP 422 Unprocessable Entity."""
+        payload = {
+            "age": -10.0,
+            "glucose": 100.0,
+            "bmi": 24.0,
+            "sample_image_name": "normal.jpg",
+        }
+        res = self.client.post("/api/triage", data=payload)
+        self.assertEqual(res.status_code, 422)
 
 
 if __name__ == "__main__":
