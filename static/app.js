@@ -131,7 +131,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // ========================================================
     function setWorkflowStep(stepNumber) {
         currentWorkflowStep = stepNumber;
-        workflowStepText.textContent = `Step ${stepNumber} of 5`;
+        if (workflowStepText) {
+            workflowStepText.textContent = `Step ${stepNumber} of 4`;
+        }
 
         stepDots.forEach((dot, idx) => {
             dot.classList.remove("active", "completed");
@@ -392,9 +394,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const stage2 = document.getElementById("stage2");
         const stage3 = document.getElementById("stage3");
         const stage4 = document.getElementById("stage4");
-        const stage5 = document.getElementById("stage5");
 
-        stage2.classList.add("processing");
+        if (stage2) stage2.classList.add("processing");
 
         try {
             const response = await fetch("/api/triage", {
@@ -402,7 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: formData
             });
 
-            stage2.classList.remove("processing");
+            if (stage2) stage2.classList.remove("processing");
 
             if (!response.ok) {
                 const errData = await response.json();
@@ -413,32 +414,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Cascade fluide et rapide sur les agents suivants (150ms chacun)
             setWorkflowStep(3);
-            stage3.classList.add("processing");
+            if (stage3) stage3.classList.add("processing");
             await new Promise((r) => setTimeout(r, 150));
-            stage3.classList.remove("processing");
+            if (stage3) stage3.classList.remove("processing");
 
             setWorkflowStep(4);
-            stage4.classList.add("processing");
+            if (stage4) stage4.classList.add("processing");
             await new Promise((r) => setTimeout(r, 150));
-            stage4.classList.remove("processing");
-
-            setWorkflowStep(5);
-            stage5.classList.add("processing");
-            setTimeout(() => stage5.classList.remove("processing"), 300);
+            if (stage4) stage4.classList.remove("processing");
 
             renderResults(data);
             addRecentAssessment(data);
 
         } catch (err) {
-            stage2.classList.remove("processing");
-            stage3.classList.remove("processing");
-            stage4.classList.remove("processing");
+            if (stage2) stage2.classList.remove("processing");
+            if (stage3) stage3.classList.remove("processing");
+            if (stage4) stage4.classList.remove("processing");
             alert(`Erreur d'analyse : ${err.message}`);
             setWorkflowStep(1);
         } finally {
             btnStartAnalysis.disabled = false;
             btnSpinner.style.display = "none";
-            btnText.textContent = "Start analysis";
+            btnText.textContent = "Start Analysis";
         }
     });
 
@@ -482,7 +479,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // ========================================================
     function addRecentAssessment(data) {
         const id = "EVAL-" + Math.floor(1000 + Math.random() * 9000);
-        const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+        const now = new Date();
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const time = `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()} – ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
         const item = {
             id,
@@ -503,8 +502,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderRecentList() {
         if (sessionAssessments.length === 0) {
-            recentEmptyState.style.display = "flex";
-            recentListContainer.style.display = "none";
+            recentEmptyState.style.display = "none";
+            recentListContainer.style.display = "flex";
             return;
         }
 
@@ -514,13 +513,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
         sessionAssessments.forEach((item) => {
             const row = document.createElement("div");
-            row.className = "recent-item";
+            row.className = "recent-item-row";
+            row.style.cursor = "pointer";
+
+            let badgeClass = "analyzed";
+            let badgeText = item.niveau;
+            if (item.niveau === "URGENT") {
+                badgeClass = "urgent";
+                badgeText = "Urgent";
+            } else if (item.niveau === "NON URGENT") {
+                badgeClass = "completed";
+                badgeText = "Completed";
+            } else {
+                badgeClass = "analyzed";
+                badgeText = "Analyzed";
+            }
+
             row.innerHTML = `
-                <div class="recent-patient-meta">
-                    <span class="recent-id">${item.id}</span>
-                    <span class="recent-time">${item.time} · Score: ${item.score}%</span>
+                <div class="recent-item-meta">
+                    <svg class="recent-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <span class="recent-date-text">${item.time}</span>
                 </div>
-                <span class="recent-badge-pill ${item.couleur}">${item.niveau}</span>
+                <span class="status-pill-badge ${badgeClass}">${badgeText}</span>
             `;
             row.addEventListener("click", () => {
                 renderResults(item.data);

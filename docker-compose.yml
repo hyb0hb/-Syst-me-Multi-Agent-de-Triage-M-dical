@@ -29,3 +29,4 @@ services:
 
     # Redémarrage automatique si nécessaire
     restart: unless-stopped
+

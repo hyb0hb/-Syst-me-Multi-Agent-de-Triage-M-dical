@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MedTriage AI — Multi-Agent Medical Triage Dashboard</title>
-    <!-- Google Fonts : Inter & Plus Jakarta Sans for premium SaaS medical look -->
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -15,22 +15,18 @@
     <div class="dashboard-container">
 
         <!-- ========================================================
-             1. FIXED VERTICAL SIDEBAR (245px)
+             1. DARK NAVY SIDEBAR (Fixed Left)
         ======================================================== -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="brand-logo">
-                    <div class="logo-shield-icon">
+                    <div class="logo-heart-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                            <path d="M12 8v8"/>
-                            <path d="M8 12h8"/>
+                            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                            <path d="M3.22 12H9.5l1.5-3 2 6.5 1.5-3.5h6.28"/>
                         </svg>
                     </div>
-                    <div class="brand-text">
-                        <span class="brand-name">MedTriage AI</span>
-                        <span class="brand-sub">Multi-Agent Medical Triage System</span>
-                    </div>
+                    <span class="brand-name">MedTriage AI</span>
                 </div>
             </div>
 
@@ -48,17 +44,18 @@
                         <line x1="12" y1="5" x2="12" y2="19"/>
                         <line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
-                    <span>New assessment</span>
+                    <span>New Assessment</span>
                 </a>
 
                 <a href="#agent-workflow" class="nav-item" id="navWorkflow">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="18" cy="18" r="3"/>
-                        <circle cx="6" cy="6" r="3"/>
-                        <path d="M13 6h3a2 2 0 0 1 2 2v7"/>
-                        <line x1="6" y1="9" x2="6" y2="21"/>
+                        <circle cx="18" cy="5" r="3"/>
+                        <circle cx="6" cy="12" r="3"/>
+                        <circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                     </svg>
-                    <span>Agent workflow</span>
+                    <span>Agent Workflow</span>
                 </a>
 
                 <a href="#model-performance" class="nav-item" id="navPerformance">
@@ -67,7 +64,7 @@
                         <line x1="12" y1="20" x2="12" y2="4"/>
                         <line x1="6" y1="20" x2="6" y2="14"/>
                     </svg>
-                    <span>Model performance</span>
+                    <span>Model Performance</span>
                 </a>
 
                 <a href="#about" class="nav-item" id="navAbout">
@@ -81,57 +78,49 @@
             </nav>
 
             <div class="sidebar-footer">
-                <div class="sidebar-info-card">
-                    <div class="info-shield-icon">
+                <div class="sidebar-trust-badge">
+                    <div class="trust-shield-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                            <polyline points="9 12 11 14 15 10"/>
+                            <path d="m9 12 2 2 4-4"/>
                         </svg>
                     </div>
-                    <p class="info-card-text">AI assistance for a faster and smarter triage process.</p>
+                    <span class="trust-text">Trusted AI<br><small>for better care</small></span>
                 </div>
             </div>
         </aside>
 
         <!-- ========================================================
-             2. MAIN CONTENT AREA (Header + Body)
+             2. MAIN WORKSPACE (Header + Body)
         ======================================================== -->
         <main class="main-wrapper">
 
-            <!-- TOP HEADER (72px) -->
+            <!-- TOP HEADER (Greeting sans 'Bonjour Hiba' + Status + Bell + Avatar) -->
             <header class="top-header">
                 <div class="header-left">
-                    <h2 class="header-greeting">Good morning,</h2>
-                    <p class="header-subtitle">Let's work together for better and faster medical decisions.</p>
+                    <span class="header-wave-emoji">👋</span>
+                    <div class="header-text-block">
+                        <h2 class="header-greeting">MedTriage AI Dashboard</h2>
+                        <p class="header-subtitle">Let's build a healthier tomorrow together.</p>
+                    </div>
                 </div>
 
                 <div class="header-right">
-                    <div class="status-indicator" id="apiStatusBadge">
+                    <div class="status-indicator-pill" id="apiStatusBadge">
                         <span class="status-dot green" id="apiStatusDot"></span>
                         <span class="status-text" id="apiStatusText">FastAPI · Connected</span>
                     </div>
 
-                    <div class="header-divider"></div>
-
-                    <div class="warning-indicator">
-                        <svg class="warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-                            <line x1="12" y1="9" x2="12" y2="13"/>
-                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    <div class="notification-btn" title="1 notification active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                         </svg>
-                        <span class="warning-text">Experimental · Not clinically validated</span>
+                        <span class="notification-badge">1</span>
                     </div>
 
-                    <div class="user-profile">
-                        <div class="user-avatar">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-                                <circle cx="12" cy="7" r="4"/>
-                            </svg>
-                        </div>
-                        <svg class="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
+                    <div class="user-avatar-circle" title="Medical Practitioner">
+                        <span>H</span>
                     </div>
                 </div>
             </header>
@@ -139,110 +128,61 @@
             <div class="content-body" id="overview">
 
                 <!-- ========================================================
-                     3. HERO SECTION (160px)
+                     3. HERO BANNER WITH STETHOSCOPE VISUAL
                 ======================================================== -->
                 <section class="hero-section">
                     <div class="hero-content">
                         <h1 class="hero-title">
-                            <span>One patient. Three agents.</span><br>
-                            <span class="highlight-turquoise">Transparent triage.</span>
+                            One patient. Three agents.<br>
+                            <span class="highlight-teal">Smarter triage.</span>
                         </h1>
                         <p class="hero-description">
-                            Our multi-agent system combines chest X-ray imaging and clinical data to provide a preliminary triage decision in <strong>3 levels:</strong>
-                            <span class="triage-chip red">Urgent</span>,
-                            <span class="triage-chip amber">To monitor</span>,
-                            <span class="triage-chip teal">Non urgent</span>.
+                            Our multi-agent system combines chest X-ray imaging and clinical data to provide a preliminary triage decision.
                         </p>
+                        <a href="#new-assessment" class="btn-hero-cta">
+                            <span>Start New Assessment</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </a>
                     </div>
 
-                    <div class="hero-visual">
-                        <div class="hero-xray-frame">
-                            <img src="/static/samples/pneumonia.jpg" alt="Decorative Chest X-Ray Visual" class="hero-xray-img">
-                            <div class="hero-floating-glass">
-                                <div class="floating-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                                        <line x1="12" y1="8" x2="12" y2="16"/>
-                                        <line x1="8" y1="12" x2="16" y2="12"/>
-                                    </svg>
-                                </div>
-                                <div class="floating-meta">
-                                    <span class="meta-label">AI for better care</span>
-                                    <svg class="ecg-line" viewBox="0 0 80 20" fill="none" stroke="#23B8B0" stroke-width="2">
-                                        <path d="M0 10 h20 l5 -8 l10 16 l8 -12 l7 8 h30" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Right side stethoscope photo -->
+                    <div class="hero-stethoscope-visual"></div>
                 </section>
 
                 <!-- ========================================================
-                     4. INTERACTIVE AGENT WORKFLOW (Centerpiece)
+                     4. AGENT WORKFLOW STEPPER (4 Connected Stages)
                 ======================================================== -->
                 <section class="workflow-card-section" id="agent-workflow">
                     <div class="workflow-card-header">
                         <div class="workflow-title-box">
-                            <svg class="workflow-main-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="7" height="7"/>
-                                <rect x="14" y="3" width="7" height="7"/>
-                                <rect x="14" y="14" width="7" height="7"/>
-                                <rect x="3" y="14" width="7" height="7"/>
-                            </svg>
+                            <span class="workflow-lightning">⚡</span>
                             <h3 class="workflow-title">Agent Workflow</h3>
                         </div>
 
-                        <div class="workflow-progress-box">
-                            <span class="step-indicator-text" id="workflowStepText">Step 1 of 5</span>
-                            <div class="progress-track">
-                                <span class="step-dot active" data-step="1"></span>
-                                <span class="step-line"></span>
-                                <span class="step-dot" data-step="2"></span>
-                                <span class="step-line"></span>
-                                <span class="step-dot" data-step="3"></span>
-                                <span class="step-line"></span>
-                                <span class="step-dot" data-step="4"></span>
-                                <span class="step-line"></span>
-                                <span class="step-dot" data-step="5"></span>
-                            </div>
-                        </div>
+                        <a href="#about" class="workflow-view-details">
+                            <span>View details</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </a>
                     </div>
 
                     <div class="workflow-stages-grid">
-                        <!-- Stage 1 -->
+                        <!-- Step 1 -->
                         <div class="workflow-stage-item active" data-stage="1" id="stage1">
-                            <div class="stage-icon-circle turquoise">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                    <circle cx="12" cy="7" r="4"/>
-                                </svg>
-                            </div>
-                            <div class="stage-info">
-                                <h4 class="stage-name">1. Patient input</h4>
-                                <p class="stage-sub">Chest X-ray + Clinical data</p>
-                                <span class="stage-badge turquoise">Current step</span>
-                            </div>
-                        </div>
-
-                        <div class="stage-connector-arrow">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M5 12h14M12 5l7 7-7 7"/>
-                            </svg>
-                        </div>
-
-                        <!-- Stage 2 -->
-                        <div class="workflow-stage-item" data-stage="2" id="stage2">
+                            <span class="step-num-badge">1</span>
                             <div class="stage-icon-circle blue">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                                    <polyline points="21 15 16 10 5 21"/>
+                                    <path d="M12 4v16"/>
+                                    <path d="M8 8a4 4 0 0 0-4 4c0 3 2 6 5 7"/>
+                                    <path d="M16 8a4 4 0 0 1 4 4c0 3-2 6-5 7"/>
                                 </svg>
                             </div>
                             <div class="stage-info">
-                                <h4 class="stage-name">2. Agent 1 – CNN</h4>
-                                <p class="stage-sub">Chest X-ray analysis</p>
-                                <span class="stage-badge blue">MobileNetV2</span>
+                                <h4 class="stage-name">Patient Input</h4>
+                                <p class="stage-sub">Upload X-ray + Clinical Data</p>
                             </div>
                         </div>
 
@@ -252,19 +192,18 @@
                             </svg>
                         </div>
 
-                        <!-- Stage 3 -->
-                        <div class="workflow-stage-item" data-stage="3" id="stage3">
-                            <div class="stage-icon-circle light-blue">
+                        <!-- Step 2 -->
+                        <div class="workflow-stage-item" data-stage="2" id="stage2">
+                            <span class="step-num-badge">2</span>
+                            <div class="stage-icon-circle cyan">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                                    <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-4.04z"/>
+                                    <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-4.04z"/>
                                 </svg>
                             </div>
                             <div class="stage-info">
-                                <h4 class="stage-name">3. Agent 2 – RF</h4>
-                                <p class="stage-sub">Clinical data analysis</p>
-                                <span class="stage-badge light-blue">Random Forest</span>
+                                <h4 class="stage-name">Agent 1 – CNN</h4>
+                                <p class="stage-sub">Detect Pneumonia</p>
                             </div>
                         </div>
 
@@ -274,21 +213,17 @@
                             </svg>
                         </div>
 
-                        <!-- Stage 4 -->
-                        <div class="workflow-stage-item" data-stage="4" id="stage4">
+                        <!-- Step 3 -->
+                        <div class="workflow-stage-item" data-stage="3" id="stage3">
+                            <span class="step-num-badge">3</span>
                             <div class="stage-icon-circle purple">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="18" cy="5" r="3"/>
-                                    <circle cx="6" cy="12" r="3"/>
-                                    <circle cx="18" cy="19" r="3"/>
-                                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                                 </svg>
                             </div>
                             <div class="stage-info">
-                                <h4 class="stage-name">4. Agent 3 – LR</h4>
-                                <p class="stage-sub">Consensus decision</p>
-                                <span class="stage-badge purple">Logistic Regression</span>
+                                <h4 class="stage-name">Agent 2 – RF</h4>
+                                <p class="stage-sub">Predict Stroke</p>
                             </div>
                         </div>
 
@@ -298,104 +233,99 @@
                             </svg>
                         </div>
 
-                        <!-- Stage 5 -->
-                        <div class="workflow-stage-item" data-stage="5" id="stage5">
-                            <div class="stage-icon-circle teal">
+                        <!-- Step 4 -->
+                        <div class="workflow-stage-item" data-stage="4" id="stage4">
+                            <span class="step-num-badge">4</span>
+                            <div class="stage-icon-circle green">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                                    <polyline points="9 12 11 14 15 10"/>
+                                    <path d="m9 12 2 2 4-4"/>
                                 </svg>
                             </div>
                             <div class="stage-info">
-                                <h4 class="stage-name">5. Triage output</h4>
-                                <p class="stage-sub">Urgent / To monitor / Non urgent</p>
-                                <span class="stage-badge teal">Triage report</span>
+                                <h4 class="stage-name">Agent 3 – LR</h4>
+                                <p class="stage-sub">Final Decision</p>
                             </div>
                         </div>
                     </div>
                 </section>
 
+                <!-- Hidden element for step tracker compatibility -->
+                <span id="workflowStepText" style="display: none;">Step 1 of 4</span>
+
                 <!-- ========================================================
-                     5. THREE-COLUMN MAIN WORKSPACE (31% | 36% | 29%)
+                     5. THREE-COLUMN WORKSPACE (Grid Layout)
                 ======================================================== -->
                 <div class="workspace-grid">
 
                     <!-- ==========================================
-                         COLUMN 1 : NEW ASSESSMENT (31%)
+                         COLUMN 1 : NEW ASSESSMENT
                     ========================================== -->
                     <div class="workspace-col col-left" id="new-assessment">
                         <div class="card assessment-card">
                             <div class="card-title-row">
                                 <div class="card-icon-title">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                        <polyline points="14 2 14 8 20 8"/>
-                                        <line x1="12" y1="18" x2="12" y2="12"/>
-                                        <line x1="9" y1="15" x2="15" y2="15"/>
-                                    </svg>
-                                    <h3 class="card-title">New assessment</h3>
+                                    <div class="card-icon-round navy">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="17 8 12 3 7 8"/>
+                                            <line x1="12" y1="3" x2="12" y2="15"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="card-title">New Assessment</h3>
+                                        <p class="card-subtitle">Upload your data to start analysis</p>
+                                    </div>
                                 </div>
                             </div>
-                            <p class="card-subtitle">Add a chest X-ray and patient clinical data to start the analysis.</p>
 
-                            <!-- Quick Preset Loader for Fast Demos -->
+                            <!-- Presets Quick Loader -->
                             <div class="preset-quick-bar">
-                                <span class="preset-bar-label">Load test case:</span>
+                                <span class="preset-bar-label">Presets:</span>
                                 <div class="preset-chips-list" id="presetChipsContainer">
                                     <button type="button" class="preset-chip-btn active" data-preset="cas_pneumonie">Pneumonia</button>
                                     <button type="button" class="preset-chip-btn" data-preset="cas_avc">Stroke</button>
                                     <button type="button" class="preset-chip-btn" data-preset="cas_critique_mixte">Mixed</button>
                                     <button type="button" class="preset-chip-btn" data-preset="cas_routine">Routine</button>
-                                    <button type="button" class="preset-chip-btn btn-random-case" id="btnRandomDataset" title="Tirer un vrai patient et sa radiographie depuis data/">
-                                        🎲 Random from Dataset
+                                    <button type="button" class="preset-chip-btn btn-random-case" id="btnRandomDataset" title="Pick random patient from data/">
+                                        🎲 Random
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- Real Dataset Case Indicator Banner -->
+                            <!-- Real Dataset Indicator Banner -->
                             <div class="dataset-source-banner" id="datasetSourceBanner" style="display: none;">
                                 <div class="source-tag-group">
                                     <span class="source-tag">DATASET REAL CASE</span>
                                     <span class="source-text" id="datasetSourceText">Patient #...</span>
                                 </div>
-                                <span class="source-info-tip" title="Données réelles extraites de healthcare-dataset-stroke-data.csv et chest_xray/test">ℹ️ Real ground truth</span>
+                                <span class="source-info-tip" title="Real ground truth">ℹ️ Real data</span>
                             </div>
 
                             <form id="assessmentForm" class="assessment-form">
-                                <!-- Chest X-ray Upload Area -->
-                                <div class="form-section-header">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                                        <polyline points="21 15 16 10 5 21"/>
+                                <!-- Drag & Drop Upload Zone -->
+                                <div class="upload-dropzone" id="dropzone">
+                                    <input type="file" id="imageFileInput" accept="image/jpeg,image/png" class="file-input-hidden">
+                                    <svg class="upload-cloud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+                                        <polyline points="12 13 12 9"/>
+                                        <polyline points="9 11 12 8 15 11"/>
                                     </svg>
-                                    <span>Chest X-ray image</span>
+                                    <span class="upload-main-text">Drag and drop files here</span>
+                                    <span class="upload-sub-text">or click to browse</span>
+                                    <span class="upload-supported-text">Supports: X-ray images &amp; clinical data</span>
                                 </div>
 
-                                <div class="xray-upload-row">
-                                    <!-- Drag & drop box -->
-                                    <div class="upload-dropzone" id="dropzone">
-                                        <input type="file" id="imageFileInput" accept="image/jpeg,image/png" class="file-input-hidden">
-                                        <svg class="upload-cloud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
-                                            <polyline points="12 12 12 16"/>
-                                            <polyline points="9 15 12 12 15 15"/>
+                                <!-- Preview Box -->
+                                <div class="upload-preview-box" id="uploadPreviewBox">
+                                    <img src="/static/samples/pneumonia.jpg" alt="Selected X-Ray Preview" id="xrayPreviewImg" class="xray-preview-img">
+                                    <div class="preview-empty-state" id="previewEmptyState" style="display: none;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                                         </svg>
-                                        <span class="upload-main-text">Drag and drop an image here or click to browse</span>
-                                        <span class="upload-sub-text">JPG, PNG (max 10 MB)</span>
+                                        <span>No image selected</span>
                                     </div>
-
-                                    <!-- Preview box -->
-                                    <div class="upload-preview-box" id="uploadPreviewBox">
-                                        <img src="/static/samples/pneumonia.jpg" alt="Selected X-Ray Preview" id="xrayPreviewImg" class="xray-preview-img">
-                                        <div class="preview-empty-state" id="previewEmptyState" style="display: none;">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                            </svg>
-                                            <span>No image selected</span>
-                                        </div>
-                                        <button type="button" class="btn-clear-preview" id="btnClearPreview" title="Remove image">×</button>
-                                    </div>
+                                    <button type="button" class="btn-clear-preview" id="btnClearPreview" title="Remove image">×</button>
                                 </div>
 
                                 <!-- Hidden fields for presets/defaults -->
@@ -404,29 +334,18 @@
                                 <input type="hidden" id="workTypeInput" name="work_type" value="Private">
                                 <input type="hidden" id="residenceInput" name="residence" value="Urban">
 
-                                <!-- Clinical Data Inputs (2-col grid) -->
-                                <div class="form-section-header clinical-margin">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-                                        <circle cx="12" cy="7" r="4"/>
-                                    </svg>
-                                    <span>Clinical data</span>
-                                </div>
-
+                                <!-- Clinical Data Form Fields -->
                                 <div class="clinical-fields-grid">
-                                    <!-- Age -->
                                     <div class="input-field-group">
                                         <label for="ageInput">Age</label>
-                                        <input type="number" id="ageInput" name="age" step="1" min="0" max="125" placeholder="e.g. 54" value="54" required>
+                                        <input type="number" id="ageInput" name="age" step="1" min="0" max="125" placeholder="54" value="54" required>
                                     </div>
 
-                                    <!-- BMI -->
                                     <div class="input-field-group">
                                         <label for="bmiInput">BMI</label>
-                                        <input type="number" id="bmiInput" name="bmi" step="0.1" min="10" max="100" placeholder="e.g. 26.2" value="26.2">
+                                        <input type="number" id="bmiInput" name="bmi" step="0.1" min="10" max="100" placeholder="26.2" value="26.2">
                                     </div>
 
-                                    <!-- Gender -->
                                     <div class="input-field-group">
                                         <label for="genderSelect">Gender</label>
                                         <select id="genderSelect" name="gender">
@@ -436,9 +355,8 @@
                                         </select>
                                     </div>
 
-                                    <!-- Smoking status -->
                                     <div class="input-field-group">
-                                        <label for="smokingSelect">Smoking status</label>
+                                        <label for="smokingSelect">Smoking Status</label>
                                         <select id="smokingSelect" name="smoking">
                                             <option value="never smoked" selected>never smoked</option>
                                             <option value="formerly smoked">formerly smoked</option>
@@ -447,7 +365,6 @@
                                         </select>
                                     </div>
 
-                                    <!-- Hypertension -->
                                     <div class="input-field-group">
                                         <label for="hypertensionSelect">Hypertension</label>
                                         <select id="hypertensionSelect" name="hypertension">
@@ -456,34 +373,26 @@
                                         </select>
                                     </div>
 
-                                    <!-- Heart disease -->
                                     <div class="input-field-group">
-                                        <label for="heartDiseaseSelect">Heart disease</label>
+                                        <label for="heartDiseaseSelect">Heart Disease</label>
                                         <select id="heartDiseaseSelect" name="heart_disease">
                                             <option value="0" selected>No</option>
                                             <option value="1">Yes</option>
                                         </select>
                                     </div>
 
-                                    <!-- Glucose level -->
-                                    <div class="input-field-group">
-                                        <label for="glucoseInput">Glucose level (mg/dL)</label>
-                                        <input type="number" id="glucoseInput" name="glucose" step="0.1" min="20" max="700" placeholder="e.g. 98.4" value="98.4" required>
-                                    </div>
-
-                                    <!-- Other factors (optional) -->
-                                    <div class="input-field-group">
-                                        <label for="otherFactorsInput">Other factors (optional)</label>
-                                        <input type="text" id="otherFactorsInput" placeholder="e.g. previous conditions...">
+                                    <div class="input-field-group full-width">
+                                        <label for="glucoseInput">Glucose Level (mg/dL)</label>
+                                        <input type="number" id="glucoseInput" name="glucose" step="0.1" min="20" max="700" placeholder="98.4" value="98.4" required>
                                     </div>
                                 </div>
 
-                                <!-- Primary Submit Action -->
+                                <!-- Primary Submit Button -->
                                 <button type="submit" class="btn-start-analysis" id="btnStartAnalysis">
                                     <svg class="btn-play-icon" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"/>
                                     </svg>
-                                    <span class="btn-text">Start analysis</span>
+                                    <span class="btn-text">Start Analysis</span>
                                     <div class="btn-spinner" id="btnSpinner" style="display: none;"></div>
                                 </button>
                             </form>
@@ -491,37 +400,43 @@
                     </div>
 
                     <!-- ==========================================
-                         COLUMN 2 : ANALYSIS & RESULTS (36%)
+                         COLUMN 2 : ANALYSIS & RESULTS & METRICS
                     ========================================== -->
                     <div class="workspace-col col-center">
+
+                        <!-- Card 1 : Analysis & Results -->
                         <div class="card results-card" id="resultsContainer">
                             <div class="card-title-row">
                                 <div class="card-icon-title">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                                        <path d="m9 12 2 2 4-4"/>
+                                        <line x1="18" y1="20" x2="18" y2="10"/>
+                                        <line x1="12" y1="20" x2="12" y2="4"/>
+                                        <line x1="6" y1="20" x2="6" y2="14"/>
                                     </svg>
-                                    <h3 class="card-title">Analysis & results</h3>
+                                    <h3 class="card-title">Analysis &amp; Results</h3>
                                 </div>
+                                <a href="#about" class="link-view-report">
+                                    <span>View report</span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                                    </svg>
+                                </a>
                             </div>
 
-                            <!-- Empty State (Shown initially before submission) -->
+                            <!-- Initial Empty State : Green Checkmark Circle -->
                             <div class="results-empty-state" id="resultsEmptyState">
-                                <div class="empty-state-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                        <polyline points="14 2 14 8 20 8"/>
-                                        <circle cx="11" cy="14" r="3"/>
-                                        <line x1="13.5" y1="16.5" x2="17" y2="20"/>
+                                <div class="ready-check-circle">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                        <polyline points="20 6 9 17 4 12"/>
                                     </svg>
                                 </div>
-                                <h4 class="empty-state-title">Ready to analyze</h4>
-                                <p class="empty-state-text">No assessment submitted yet.<br>Add an image and clinical data to see the results from the three agents.</p>
+                                <h4 class="ready-title">Ready to analyze</h4>
+                                <p class="ready-subtitle">Upload data and click start to get results</p>
                             </div>
 
-                            <!-- Populated State (Hidden until real response) -->
+                            <!-- Populated State (Shown on successful response) -->
                             <div class="results-populated-state" id="resultsPopulatedState" style="display: none;">
-                                <!-- Triage Hero Stamp -->
+                                <!-- Triage Hero Banner -->
                                 <div class="triage-status-banner danger" id="triageBanner">
                                     <div class="banner-top-row">
                                         <span class="badge-acuity" id="triageLevelBadge">URGENT</span>
@@ -534,7 +449,7 @@
                                     <p class="conduite-text" id="triageConduite">Orientation SAU d'urgence. Monitorage continu et avis spécialisé prioritaire.</p>
                                 </div>
 
-                                <!-- Agent Probabilities Breakdown -->
+                                <!-- Agent Breakdown List -->
                                 <div class="agents-breakdown-list">
                                     <!-- Agent 1 CNN -->
                                     <div class="agent-result-item">
@@ -576,7 +491,7 @@
                                             <span class="agent-prob-value" id="agent3ScoreText">78.1%</span>
                                         </div>
                                         <div class="formula-chip-box" id="formulaChipBox">
-                                            <code>z = (2.87 × P_img) + (4.21 × P_clin) - 3.02</code>
+                                            <code>z = (2.99 × P_img) + (4.24 × P_clin) - 3.31</code>
                                         </div>
                                     </div>
                                 </div>
@@ -587,98 +502,70 @@
                                         <line x1="12" y1="16" x2="12" y2="12"/>
                                         <line x1="12" y1="8" x2="12.01" y2="8"/>
                                     </svg>
-                                    <span>AI-generated estimates are experimental and do not replace professional medical assessment.</span>
+                                    <span>Emergency safety rule: P_triage = max(P_logit, P_img, P_clin)</span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Card 2 : Reported Reference Metrics -->
+                        <!-- Card 2 : Performance Metrics (3 Rounded Cards) -->
                         <div class="card metrics-card">
                             <div class="card-title-row">
                                 <div class="card-icon-title">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                                     </svg>
-                                    <h3 class="card-title">Reported reference metrics</h3>
-                                    <span class="info-circle" title="Performance achieved on the test sets during the experimental evaluation.">ⓘ</span>
+                                    <h3 class="card-title">Performance Metrics</h3>
+                                    <span class="info-circle" title="Performance metrics on test sets">ⓘ</span>
                                 </div>
                             </div>
 
-                            <div class="reference-metrics-grid">
-                                <!-- Card 1 : CNN -->
-                                <div class="metric-box-item">
-                                    <div class="metric-top">
-                                        <div class="metric-icon-small turquoise">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                                <circle cx="8.5" cy="8.5" r="1.5"/>
-                                                <polyline points="21 15 16 10 5 21"/>
-                                            </svg>
-                                        </div>
-                                        <div class="metric-meta-col">
-                                            <span class="metric-model-name">CNN (Image)</span>
-                                            <span class="metric-arch-tag">MobileNetV2</span>
-                                        </div>
+                            <div class="metrics-three-cards-grid">
+                                <!-- Metric 1 : CNN -->
+                                <div class="metric-mini-card cnn-card">
+                                    <div class="metric-mini-icon blue">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 4v16"/>
+                                            <path d="M8 8a4 4 0 0 0-4 4c0 3 2 6 5 7"/>
+                                            <path d="M16 8a4 4 0 0 1 4 4c0 3-2 6-5 7"/>
+                                        </svg>
                                     </div>
-                                    <div class="metric-val-block">
-                                        <span class="metric-label-small">ROC-AUC</span>
-                                        <span class="metric-large-number" id="refCnnAuc">0.965</span>
-                                    </div>
+                                    <span class="metric-large-num" id="refCnnAuc">0.965</span>
+                                    <span class="metric-sub-label">ROC-AUC<br><small>(CNN)</small></span>
                                 </div>
 
-                                <!-- Card 2 : RF -->
-                                <div class="metric-box-item">
-                                    <div class="metric-top">
-                                        <div class="metric-icon-small blue">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                                            </svg>
-                                        </div>
-                                        <div class="metric-meta-col">
-                                            <span class="metric-model-name">Random Forest</span>
-                                            <span class="metric-arch-tag">Clinical</span>
-                                        </div>
+                                <!-- Metric 2 : RF -->
+                                <div class="metric-mini-card rf-card">
+                                    <div class="metric-mini-icon purple">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                        </svg>
                                     </div>
-                                    <div class="metric-val-block">
-                                        <span class="metric-label-small">ROC-AUC</span>
-                                        <span class="metric-large-number" id="refRfAuc">0.846</span>
-                                    </div>
+                                    <span class="metric-large-num" id="refRfAuc">0.846</span>
+                                    <span class="metric-sub-label">ROC-AUC<br><small>(RF)</small></span>
                                 </div>
 
-                                <!-- Card 3 : LR -->
-                                <div class="metric-box-item">
-                                    <div class="metric-top">
-                                        <div class="metric-icon-small purple">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="18" cy="5" r="3"/>
-                                                <circle cx="6" cy="12" r="3"/>
-                                                <circle cx="18" cy="19" r="3"/>
-                                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                                            </svg>
-                                        </div>
-                                        <div class="metric-meta-col">
-                                            <span class="metric-model-name">Logistic Reg.</span>
-                                            <span class="metric-arch-tag">Consensus</span>
-                                        </div>
+                                <!-- Metric 3 : LR -->
+                                <div class="metric-mini-card lr-card">
+                                    <div class="metric-mini-icon green">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                            <path d="m9 12 2 2 4-4"/>
+                                        </svg>
                                     </div>
-                                    <div class="metric-val-block">
-                                        <span class="metric-label-small">ROC-AUC</span>
-                                        <span class="metric-large-number" id="refLrAuc">0.879</span>
-                                    </div>
+                                    <span class="metric-large-num" id="refLrAuc">0.879</span>
+                                    <span class="metric-sub-label">ROC-AUC<br><small>(LR)</small></span>
                                 </div>
                             </div>
-                            <p class="metrics-caption">These are reference metrics from the training phase, not real-time results.</p>
                         </div>
+
                     </div>
 
                     <!-- ==========================================
-                         COLUMN 3 : RECENT & MODEL CHARTS (29%)
+                         COLUMN 3 : RECENT ASSESSMENTS & CHARTS
                     ========================================== -->
                     <div class="workspace-col col-right" id="model-performance">
-                        <!-- Recent assessments Card -->
+
+                        <!-- Card 1 : Recent Assessments -->
                         <div class="card recent-card">
                             <div class="card-title-row">
                                 <div class="card-icon-title">
@@ -686,13 +573,18 @@
                                         <circle cx="12" cy="12" r="10"/>
                                         <polyline points="12 6 12 12 16 14"/>
                                     </svg>
-                                    <h3 class="card-title">Recent assessments</h3>
+                                    <h3 class="card-title">Recent Assessments</h3>
                                 </div>
-                                <span class="link-view-all" id="btnViewAllAssessments">View all</span>
+                                <a href="#about" class="link-view-all" id="btnViewAllAssessments">
+                                    <span>View all</span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                                    </svg>
+                                </a>
                             </div>
 
-                            <!-- Empty state -->
-                            <div class="recent-empty-state" id="recentEmptyState">
+                            <!-- Empty state fallback -->
+                            <div class="recent-empty-state" id="recentEmptyState" style="display: none;">
                                 <div class="empty-doc-icon">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -700,27 +592,59 @@
                                     </svg>
                                 </div>
                                 <h4 class="empty-state-title">No assessments yet</h4>
-                                <p class="empty-state-text">Results appear after a successful API response.</p>
                             </div>
 
-                            <!-- Populated list -->
-                            <div class="recent-list" id="recentListContainer" style="display: none;"></div>
+                            <!-- Populated list with initial design sample items -->
+                            <div class="recent-list" id="recentListContainer">
+                                <div class="recent-item-row">
+                                    <div class="recent-item-meta">
+                                        <svg class="recent-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            <polyline points="14 2 14 8 20 8"/>
+                                        </svg>
+                                        <span class="recent-date-text">Nov 9, 2026 – 14:32</span>
+                                    </div>
+                                    <span class="status-pill-badge completed">Completed</span>
+                                </div>
+
+                                <div class="recent-item-row">
+                                    <div class="recent-item-meta">
+                                        <svg class="recent-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            <polyline points="14 2 14 8 20 8"/>
+                                        </svg>
+                                        <span class="recent-date-text">Nov 8, 2026 – 17:20</span>
+                                    </div>
+                                    <span class="status-pill-badge completed">Completed</span>
+                                </div>
+
+                                <div class="recent-item-row">
+                                    <div class="recent-item-meta">
+                                        <svg class="recent-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            <polyline points="14 2 14 8 20 8"/>
+                                        </svg>
+                                        <span class="recent-date-text">Nov 7, 2026 – 11:15</span>
+                                    </div>
+                                    <span class="status-pill-badge analyzed">Analyzed</span>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Model Performance Visualization Card -->
+                        <!-- Card 2 : Model Performance (Reference) Vertical Bar Chart -->
                         <div class="card performance-card">
                             <div class="card-title-row">
                                 <div class="card-icon-title">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M18 20V10"/>
-                                        <path d="M12 20V4"/>
-                                        <path d="M6 20v-6"/>
+                                        <line x1="18" y1="20" x2="18" y2="10"/>
+                                        <line x1="12" y1="20" x2="12" y2="4"/>
+                                        <line x1="6" y1="20" x2="6" y2="14"/>
                                     </svg>
-                                    <h3 class="card-title">Model performance (reference)</h3>
+                                    <h3 class="card-title">Model Performance (Reference)</h3>
                                 </div>
                             </div>
 
-                            <!-- Metric Tabs -->
+                            <!-- Metric Selection Tabs -->
                             <div class="perf-tabs-bar">
                                 <button type="button" class="perf-tab-btn active" data-tab="roc_auc">ROC-AUC</button>
                                 <button type="button" class="perf-tab-btn" data-tab="precision">Precision</button>
@@ -728,14 +652,14 @@
                                 <button type="button" class="perf-tab-btn" data-tab="f1">F1-score</button>
                             </div>
 
-                            <!-- Clean lightweight SVG Bar Chart -->
+                            <!-- Vertical Bar Chart -->
                             <div class="chart-container">
                                 <div class="chart-bars-wrap">
                                     <!-- Bar 1 : CNN -->
                                     <div class="chart-col">
                                         <span class="bar-val-label" id="chartValCnn">0.965</span>
                                         <div class="bar-track">
-                                            <div class="bar-fill bar-turquoise" id="chartBarCnn" style="height: 96.5%;"></div>
+                                            <div class="bar-fill bar-blue" id="chartBarCnn" style="height: 96.5%;"></div>
                                         </div>
                                         <span class="bar-axis-label">CNN<br><small>(Image)</small></span>
                                     </div>
@@ -744,7 +668,7 @@
                                     <div class="chart-col">
                                         <span class="bar-val-label" id="chartValRf">0.846</span>
                                         <div class="bar-track">
-                                            <div class="bar-fill bar-blue" id="chartBarRf" style="height: 84.6%;"></div>
+                                            <div class="bar-fill bar-purple" id="chartBarRf" style="height: 84.6%;"></div>
                                         </div>
                                         <span class="bar-axis-label">RF<br><small>(Clinical)</small></span>
                                     </div>
@@ -753,13 +677,14 @@
                                     <div class="chart-col">
                                         <span class="bar-val-label" id="chartValLr">0.879</span>
                                         <div class="bar-track">
-                                            <div class="bar-fill bar-purple" id="chartBarLr" style="height: 87.9%;"></div>
+                                            <div class="bar-fill bar-green" id="chartBarLr" style="height: 87.9%;"></div>
                                         </div>
-                                        <span class="bar-axis-label">LR<br><small>(Consensus)</small></span>
+                                        <span class="bar-axis-label">LR<br><small>(Combined)</small></span>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </div>
 
@@ -769,14 +694,17 @@
                  6. PERSISTENT FOOTER
             ======================================================== -->
             <footer class="dashboard-footer" id="about">
-                <span class="footer-disclaimer">Research prototype only. Probabilities are not a diagnosis; clinical validation required.</span>
-                <span class="footer-version">MedTriage AI · v1.0</span>
+                <span class="footer-disclaimer">
+                    <span class="info-icon-small">ⓘ</span>
+                    Research prototype only. Not a clinical device. Results are not a medical diagnosis.
+                </span>
+                <span class="footer-version">MedTriage AI v1.0.0</span>
             </footer>
 
         </main>
     </div>
 
-    <!-- Application Script -->
+    <!-- Application JavaScript -->
     <script src="/static/app.js"></script>
 </body>
 </html>

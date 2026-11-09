@@ -113,3 +113,4 @@ Ouvrez **http://localhost:8000** devant le jury et cliquez successivement sur le
 * **Agent 2 (Random Forest) :** 700 arbres | ROC-AUC = **0.846** | Rappel AVC = **80.0%** | Test set = 1 022 patients.
 * **Agent 3 (Régression Logistique) :** ROC-AUC = **0.879** | Précision = **92.4%** | Coefficients : Image +2.99, Clinique +4.24, Biais -3.31.
 * **Banc de Tests :** **15/15 tests réussis** en 3.6 secondes via `unittest` et `TestClient`.
+
