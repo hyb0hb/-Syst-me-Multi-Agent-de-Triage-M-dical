@@ -1,0 +1,31 @@
+# ==============================================================================
+# Docker Compose pour MedTriage AI
+# Permet de lancer tout le système en une commande tout en autorisant
+# les modifications en direct du code depuis votre éditeur (Hot-Reload)
+# ==============================================================================
+
+services:
+  medtriage-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medtriage-ai
+    ports:
+      - "8000:8000"
+    volumes:
+      # 1. Montage en direct : chaque fichier modifié sur votre PC est
+      #    instantanément synchronisé dans le conteneur sans re-build !
+      - .:/app
+
+      # 2. Volume anonyme pour protéger les packages Linux du conteneur
+      #    contre l'environnement Windows .venv local
+      - /app/.venv
+      - /app/__pycache__
+
+    environment:
+      - MEDTRIAGE_HOST=0.0.0.0
+      - PORT=8000
+      - PYTHONUNBUFFERED=1
+
+    # Redémarrage automatique si nécessaire
+    restart: unless-stopped

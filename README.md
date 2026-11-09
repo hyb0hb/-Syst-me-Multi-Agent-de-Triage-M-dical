@@ -84,6 +84,20 @@ Puis ouvrez votre navigateur sur : **[http://127.0.0.1:8000](http://127.0.0.1:80
 - Formulaire interactif avec curseurs dynamiques et téléversement de radiographies.
 - Visualisation en temps réel de la jauge d'urgence et des délibérations de chaque agent.
 
+### 4. Lancer avec Docker (Une seule commande avec Hot-Reload)
+
+Pour exécuter toute l'application dans un conteneur isolé tout en continuant à modifier votre code en direct depuis votre éditeur (VS Code) :
+
+```bash
+# Recommandé : lancement avec Docker Compose
+docker compose up
+
+# Ou avec docker run classique (montage du code local en direct)
+docker build -t medtriage-ai .
+docker run -p 8000:8000 -v ${PWD}:/app medtriage-ai
+```
+L'interface est accessible sur **[http://localhost:8000](http://localhost:8000)**. Toute modification apportée à vos fichiers Python, HTML ou CSS est répercutée en direct sans avoir à reconstruire le conteneur.
+
 ---
 
 ## Réentraînement des Modèles (Optionnel)
