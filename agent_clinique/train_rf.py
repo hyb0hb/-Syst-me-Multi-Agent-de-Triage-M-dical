@@ -1,7 +1,6 @@
 """Agent 2 : Modèle Clinique Tabulaire de Risque Neuro-Vasculaire (Random Forest).
 
-100% Conforme au Cahier des Charges (RandomForestClassifier scikit-learn).
-Version haute performance avec interactions polynomiales natives et régularisation fine.
+
 """
 
 import argparse
