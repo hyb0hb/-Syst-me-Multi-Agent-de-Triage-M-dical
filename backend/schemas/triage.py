@@ -8,7 +8,8 @@ class TriageEvaluationResponse(BaseModel):
     """Structure de réponse complète retournée par l'orchestrateur de triage."""
 
     niveau: str = Field(..., description="Niveau de triage : URGENT, À SURVEILLER, NON URGENT")
-    score_urgence: float = Field(..., description="Probabilité d'urgence composite (0 à 100 %)")
+    score_urgence: float = Field(..., description="Score final de triage après principe de précaution (0 à 100 %)")
+    score_composite_logit: Optional[float] = Field(None, description="Probabilité composite issue du modèle de régression logistique (0 à 100 %)")
     couleur: str = Field(..., description="Badge CSS : danger, warning, success")
     delai_recommande: str = Field(..., description="Délai clinique recommandé de prise en charge")
     conduite_a_tenir: str = Field(..., description="Protocole d'orientation médicale et examens")

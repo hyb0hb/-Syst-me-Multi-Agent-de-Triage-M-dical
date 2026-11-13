@@ -4,9 +4,13 @@ from typing import Optional
 from fastapi import HTTPException, status
 
 
+# Compatibilité Starlette/FastAPI toutes versions
+HTTP_422 = getattr(status, "HTTP_422_UNPROCESSABLE_ENTITY", 422)
+
+
 def _reject(detail: str) -> None:
     """Lève une erreur HTTP 422 avec le message donné."""
-    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
+    raise HTTPException(status_code=HTTP_422, detail=detail)
 
 
 def _check_enum(value: str, allowed: tuple, label: str) -> None:

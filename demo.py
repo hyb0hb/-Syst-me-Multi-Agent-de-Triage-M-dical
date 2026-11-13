@@ -58,13 +58,18 @@ def agent_clinique(row):
 
 
 def agent_decision(p_img, p_clin):
-    """Agent 3 : superviseur de consensus (Régression Logistique)."""
+    """Agent 3 : superviseur de consensus (Régression Logistique + Principe de Précaution SAU)."""
     model_path = ROOT / "agent_decision" / "model_lr.joblib"
     if not model_path.exists():
         raise FileNotFoundError(f"Modèle Régression Logistique introuvable : {model_path}")
 
     model = joblib.load(model_path)
-    p = float(model.predict_proba([[p_img, p_clin]])[0, 1])
+    p_composite = float(model.predict_proba([[p_img, p_clin]])[0, 1])
+
+    # Règle de consensus clinique (Principe de précaution SAU) :
+    # Si un axe spécialisé présente une détresse aiguë, l'orientation d'urgence prime.
+    p = max(p_composite, p_img, p_clin)
+
     if p >= 0.70:
         niveau = "URGENT (Priorité SAU < 15 min)"
     elif p >= 0.40:

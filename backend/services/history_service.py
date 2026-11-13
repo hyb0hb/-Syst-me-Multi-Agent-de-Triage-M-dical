@@ -7,6 +7,7 @@ Le fichier garde les 100 dernières évaluations (FIFO).
 """
 
 import json
+import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,7 @@ from pathlib import Path
 # Fichier de stockage des évaluations
 HISTORY_FILE = Path(__file__).resolve().parents[2] / "data" / "historique_triages.json"
 MAX_RECORDS = 100  # On garde les 100 derniers triages maximum
+_HISTORY_LOCK = threading.Lock()
 
 
 def _load_history() -> list:
@@ -28,73 +30,72 @@ def _load_history() -> list:
 
 
 def _save_history(records: list) -> None:
-    """Écrit la liste des évaluations dans le fichier JSON."""
+    """Écrit la liste des évaluations dans le fichier JSON (thread-safe)."""
     HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(records, f, ensure_ascii=False, indent=2)
 
 
 def save_triage_result(result: dict, patient_info: dict) -> str:
-    """Enregistre un résultat de triage dans l'historique JSON.
+    """Enregistre un résultat de triage pseudonymisé dans l'historique JSON (thread-safe).
 
     Args:
         result: Le dictionnaire complet retourné par run_full_triage().
-        patient_info: Métadonnées brutes du patient (âge, genre...).
+        patient_info: Métadonnées brutes du patient (pseudonymisées).
 
     Returns:
         L'identifiant unique de l'évaluation sauvegardée (ex: EVAL-a3f2...).
     """
-    records = _load_history()
+    with _HISTORY_LOCK:
+        records = _load_history()
 
-    eval_id = "EVAL-" + str(uuid.uuid4())[:8].upper()
-    timestamp = datetime.now().isoformat()
+        eval_id = "EVAL-" + str(uuid.uuid4())[:8].upper()
+        timestamp = datetime.now().isoformat()
 
-    record = {
-        "id": eval_id,
-        "timestamp": timestamp,
-        "date_heure": datetime.now().strftime("%d/%m/%Y à %H:%M"),
-        # Résultat du triage
-        "niveau": result["triage"]["niveau"],
-        "score_urgence": result["triage"]["score_urgence"],
-        "couleur": result["triage"]["couleur"],
-        "delai_recommande": result["triage"]["delai_recommande"],
-        "conduite_a_tenir": result["triage"]["conduite_a_tenir"],
-        # Scores des agents
-        "agent_image_risque": result["agents"]["image"]["risque_pneumonie"],
-        "agent_clinique_risque": result["agents"]["clinique"]["risque_avc"],
-        # Synthèse patient
-        "patient": result["patient_synthese"],
-        # Info brutes
-        "parametres_bruts": patient_info,
-    }
+        # Enregistrement pseudonymisé (conforme confidentialité médicale / RGPD santé)
+        record = {
+            "id": eval_id,
+            "timestamp": timestamp,
+            "date_heure": datetime.now().strftime("%d/%m/%Y à %H:%M"),
+            # Résultat du triage
+            "niveau": result["triage"]["niveau"],
+            "score_urgence": result["triage"]["score_urgence"],
+            "score_composite_logit": result["triage"].get("score_composite_logit"),
+            "couleur": result["triage"]["couleur"],
+            "delai_recommande": result["triage"]["delai_recommande"],
+            "conduite_a_tenir": result["triage"]["conduite_a_tenir"],
+            # Scores des agents
+            "agent_image_risque": result["agents"]["image"]["risque_pneumonie"],
+            "agent_clinique_risque": result["agents"]["clinique"]["risque_avc"],
+            # Synthèse pseudonymisée
+            "patient": result["patient_synthese"],
+            "parametres_pseudonymises": {
+                "age_tranche": f"{int(patient_info['age']//10)*10}-{int(patient_info['age']//10)*10+9} ans",
+                "hypertension": bool(patient_info.get("hypertension")),
+                "heart_disease": bool(patient_info.get("heart_disease")),
+                "smoking": patient_info.get("smoking"),
+            },
+        }
 
-    # Insertion en tête de liste (plus récent en premier)
-    records.insert(0, record)
+        records.insert(0, record)
+        if len(records) > MAX_RECORDS:
+            records = records[:MAX_RECORDS]
 
-    # On ne garde que les MAX_RECORDS derniers
-    if len(records) > MAX_RECORDS:
-        records = records[:MAX_RECORDS]
-
-    _save_history(records)
-    return eval_id
+        _save_history(records)
+        return eval_id
 
 
 def get_history(limit: int = 20) -> list:
-    """Retourne les N évaluations les plus récentes.
-
-    Args:
-        limit: Nombre maximum d'entrées à retourner (défaut 20).
-
-    Returns:
-        Liste des évaluations triées du plus récent au plus ancien.
-    """
-    records = _load_history()
-    return records[:limit]
+    """Retourne les N évaluations les plus récentes (thread-safe)."""
+    with _HISTORY_LOCK:
+        records = _load_history()
+        return records[:limit]
 
 
 def clear_history() -> int:
-    """Efface tout l'historique. Retourne le nombre d'entrées supprimées."""
-    records = _load_history()
-    count = len(records)
-    _save_history([])
-    return count
+    """Efface tout l'historique (thread-safe)."""
+    with _HISTORY_LOCK:
+        records = _load_history()
+        count = len(records)
+        _save_history([])
+        return count

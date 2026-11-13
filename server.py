@@ -15,5 +15,7 @@ from backend.config import PRESETS  # noqa: F401
 from backend.services.validation_service import validate_clinical_inputs  # noqa: F401
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
+    host = os.environ.get("MEDTRIAGE_HOST", "127.0.0.1")
+    uvicorn.run("backend.main:app", host=host, port=8000, reload=True)

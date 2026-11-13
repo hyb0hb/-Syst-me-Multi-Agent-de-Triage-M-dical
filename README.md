@@ -28,7 +28,7 @@ Trois agents spécialisés collaborent pour produire une orientation de triage h
 ├── agent_clinique/     Agent 2 : Random Forest avec ColumnTransformer (train_rf.py, model_rf.joblib)
 ├── agent_decision/     Agent 3 : Régression Logistique Superviseur (train_decision.py, model_lr.joblib)
 ├── tests/              Banc de tests automatisés (test_system.py)
-├── rapport/            Rapport technique complet (rapport_technique.md) et plan (plan_rapport.md)
+├── rapport/            Rapport technique complet (rapport_technique.md)
 ├── static/             Frontend Web réactif (index.html, style.css, app.js, samples/)
 ├── data/               Instructions pour télécharger les datasets Kaggle bruts (README.md)
 ├── demo.py             Démonstrateur en ligne de commande (CLI)
@@ -63,7 +63,7 @@ pip install -r requirements.txt
 ```bash
 py tests/test_system.py
 ```
-*Valide automatiquement 11 points critiques : équilibre des poids, cohérence des quadrants cliniques, filtrage des entrées physiologiques, détection des anomalies.*
+*Valide automatiquement 15 points critiques : équilibre des poids, cohérence des quadrants cliniques et sécurité SAU, filtrage physiologique, robustesse des endpoints REST FastAPI.*
 
 ### 2. Exécuter la Démonstration en Ligne de Commande (CLI)
 ```bash
@@ -83,6 +83,20 @@ Puis ouvrez votre navigateur sur : **[http://127.0.0.1:8000](http://127.0.0.1:80
 - 4 dossiers patients préenregistrés pour tester immédiatement les scénarios cliniques.
 - Formulaire interactif avec curseurs dynamiques et téléversement de radiographies.
 - Visualisation en temps réel de la jauge d'urgence et des délibérations de chaque agent.
+
+### 4. Lancer avec Docker (Une seule commande avec Hot-Reload)
+
+Pour exécuter toute l'application dans un conteneur isolé tout en continuant à modifier votre code en direct depuis votre éditeur (VS Code) :
+
+```bash
+# Recommandé : lancement avec Docker Compose
+docker compose up
+
+# Ou avec docker run classique (montage du code local en direct)
+docker build -t medtriage-ai .
+docker run -p 8000:8000 -v ${PWD}:/app medtriage-ai
+```
+L'interface est accessible sur **[http://localhost:8000](http://localhost:8000)**. Toute modification apportée à vos fichiers Python, HTML ou CSS est répercutée en direct sans avoir à reconstruire le conteneur.
 
 ---
 

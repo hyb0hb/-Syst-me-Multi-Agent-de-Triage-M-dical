@@ -23,15 +23,15 @@ router = APIRouter(prefix="/api", tags=["Triage Médical Multi-Agent"])
 async def perform_triage(
     image: Optional[UploadFile] = File(None, description="Cliché radiologique (JPEG/PNG)"),
     sample_image_name: Optional[str] = Form(None, description="Nom de l'image de test préchargée"),
-    age: float = Form(..., description="Âge du patient (années)", example=54.0),
+    age: float = Form(..., description="Âge du patient (années)", examples=[54.0]),
     gender: str = Form("Male", description="Genre (Male, Female, Other)"),
     hypertension: int = Form(0, description="Antécédent d'hypertension artérielle (0 ou 1)"),
     heart_disease: int = Form(0, description="Antécédent de cardiopathie (0 ou 1)"),
     ever_married: str = Form("Yes", description="Statut marital (Yes ou No)"),
     work_type: str = Form("Private", description="Type d'activité professionnelle"),
     residence: str = Form("Urban", description="Lieu de résidence (Urban ou Rural)"),
-    glucose: float = Form(..., description="Glycémie moyenne à jeun (mg/dL)", example=98.4),
-    bmi: Optional[float] = Form(None, description="Indice de masse corporelle (kg/m²)", example=26.2),
+    glucose: float = Form(..., description="Glycémie moyenne à jeun (mg/dL)", examples=[98.4]),
+    bmi: Optional[float] = Form(None, description="Indice de masse corporelle (kg/m²)", examples=[26.2]),
     smoking: str = Form("never smoked", description="Statut tabagique"),
 ):
     # Validation clinique stricte des entrées

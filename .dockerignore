@@ -1,0 +1,24 @@
+# Environnements virtuels et caches Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Contrôle de version
+.git/
+.gitignore
+
+# Données volumineuses non nécessaires au fonctionnement de l'image
+# (les images de test indispensables sont dans static/samples/)
+data/chest_xray/
+data/*.zip
+data/*.tar.gz
+
+# Fichiers temporaires et IDE
+.vscode/
+.idea/
+*.log
+.DS_Store
+

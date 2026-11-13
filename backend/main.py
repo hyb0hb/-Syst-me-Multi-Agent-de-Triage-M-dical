@@ -6,6 +6,7 @@ Architecture modulaire :
 - Schemas : validation et documentation OpenAPI Pydantic
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -15,6 +16,15 @@ from backend.config import STATIC_DIR
 from backend.routers import metrics_router, presets_router, triage_router
 from backend.routers.history import router as history_router
 from backend.services.model_service import load_metrics, warmup_models
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialise le cache et réchauffe les modèles au démarrage du serveur."""
+    load_metrics()
+    warmup_models()
+    yield
+
 
 app = FastAPI(
     title="MedTriage AI — Multi-Agent Medical Triage Backend",
@@ -26,12 +36,19 @@ app = FastAPI(
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
-# Configuration CORS pour intégration frontend / clients tiers
+# Configuration CORS sécurisée (conforme W3C : pas de wildcard * avec allow_credentials=True)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,13 +63,6 @@ app.include_router(history_router)
 # Montage des fichiers statiques (UI web)
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-
-@app.on_event("startup")
-def startup_event():
-    """Initialise le cache et réchauffe les modèles dès le lancement."""
-    load_metrics()
-    warmup_models()
 
 
 @app.get("/", summary="Page d'accueil de l'interface utilisateur")

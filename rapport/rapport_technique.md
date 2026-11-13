@@ -44,8 +44,8 @@ Le projet s'inscrit dans le respect strict des exigences universitaires :
 | **Dataset Imagerie** | *Chest X-Ray Images (Pneumonia)* (Kaggle) | **100 % Respecté** |
 | **Dataset Clinique** | *Stroke Prediction Dataset* (Kaggle) | **100 % Respecté** |
 | **Agent 1 (Vision)** | CNN avec Transfer Learning sur radiographies | **MobileNetV2 fine-tuné** |
-| **Agent 2 (Clinique)** | Random Forest sur données tabulaires | **Random Forest (300 arbres)** |
-| **Agent 3 (Consensus)** | Régression Logistique décisionnelle | **Régression Logistique L2** |
+| **Agent 2 (Clinique)** | Random Forest sur données tabulaires | **Random Forest (700 arbres régularisés)** |
+| **Agent 3 (Consensus)** | Régression Logistique décisionnelle | **Régression Logistique L2 + Sécurité SAU** |
 | **Livrables Exigibles** | Rapport technique, code source documenté, démo | **Livrables complets** |
 
 ---
@@ -131,15 +131,18 @@ Le système adopte une topologie distribuée en trois agents coopératifs :
 - **Tête de classification :** `GlobalAveragePooling2D` $\to$ `Dropout(0.3)` $\to$ `Dense(1, activation='sigmoid')`.
 
 ### Agent 2 : Spécialiste Risque Clinique (Random Forest)
-- Ensemble de 300 arbres de décision (`n_estimators=300`).
-- Profondeur limitée à `max_depth=8` et feuilles minimales `min_samples_leaf=5` pour prévenir le surapprentissage.
-- Pondération `class_weight="balanced_subsample"` pour forcer les arbres à observer la classe minoritaire d'AVC.
+- Ensemble de 700 arbres de décision (`n_estimators=700`).
+- Régularisation fine : profondeur `max_depth=6`, `min_samples_split=6`, `min_samples_leaf=3`, fraction de variables `max_features=0.4` pour prévenir le surapprentissage.
+- Pondération `class_weight="balanced_subsample"` et critère d'entropie croisée `log_loss` pour forcer les arbres à observer la classe minoritaire d'AVC.
 
-### Agent 3 : Superviseur Décisionnel (Régression Logistique)
-- Fonctionne par **empilement tardif de décisions (*Late Stacking*)**.
+### Agent 3 : Superviseur Décisionnel (Régression Logistique + Principe de Précaution SAU)
+- Fonctionne par **empilement tardif de décisions (*Late Stacking*) couplé à une règle d'escalade d'urgence**.
 - Prend en entrée le vecteur de probabilités $\mathbf{p} = [P_{\text{pneumonie}}, P_{\text{AVC}}]$.
-- Modélise la probabilité d'escalade d'urgence :
-  $$P(\text{urgent} \mid \mathbf{p}) = \sigma(\beta_0 + \beta_1 P_{\text{pneumonie}} + \beta_2 P_{\text{AVC}})$$
+- Modélise la probabilité d'escalade d'urgence composite :
+  $$P_{\text{composite}}(\mathbf{p}) = \sigma(\beta_0 + \beta_1 P_{\text{pneumonie}} + \beta_2 P_{\text{AVC}})$$
+- **Principe de Précaution Clinique SAU (Échelle de Manchester / ESI) :**
+  $$P_{\text{triage}} = \max\Big(P_{\text{composite}}, \; P_{\text{pneumonie}}, \; P_{\text{AVC}}\Big)$$
+  Garantit qu'une détresse vitale aiguë sur l'un des deux axes oriente systématiquement le patient en filière **URGENT** (< 15 min), éliminant tout sous-triage mortel.
 
 ---
 
@@ -176,12 +179,20 @@ Les performances ont été recalculées directement sur les jeux de test physiqu
 | Agent | Modèle | Échantillons Test | Accuracy | Sensibilité / Rappel | Spécificité | Précision | ROC-AUC | PR-AUC |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Agent 1** | MobileNetV2 Fine-tuné | 624 clichés | 85,9 % | **98,5 %** (Pneumo) | 65,0 % (Normal) | 82,4 % | **0,965** | 0,976 |
-| **Agent 2** | Random Forest Pondéré | 1 022 patients | 84,2 % | **68,0 %** (AVC) | 85,1 % (Sain) | 19,0 % | **0,825** | 0,223 |
-| **Agent 3** | Régression Logistique (4Q) | 2 000 paires | 73,0 % | **71,3 %** (Urgent) | **78,6 %** (Non urg.) | 91,0 % | **0,821** | 0,920 |
+| **Agent 2** | Random Forest Régularisé | 1 022 patients | 77,0 % | **80,0 %** (AVC) | 76,9 % (Sain) | 15,1 % | **0,846** | 0,254 |
+| **Agent 3** | Régression Logistique (4Q) | 2 000 paires | 72,2 % | **68,5 %** (Urgent) | **83,0 %** (Non urg.) | 92,4 % | **0,879** | 0,949 |
 
 ### Formule Logit Apprise par l'Agent Décisionnel
-$$z = 2{,}87 \times P_{\text{pneumonie}} + 4{,}21 \times P_{\text{AVC}} - 3{,}02$$
-$$P(\text{urgent}) = \frac{1}{1 + e^{-z}}$$
+$$z = 2{,}99 \times P_{\text{pneumonie}} + 4{,}24 \times P_{\text{AVC}} - 3{,}31$$
+$$P_{\text{composite}} = \frac{1}{1 + e^{-z}}$$
+
+### Règle d'Escalade et Paliers de Triage Médical
+Afin d'éliminer le sous-triage inhérent à l'addition logit brute sur un cas unilatéral (ex: pneumonie aiguë sans risque cardiovasculaire), le système applique le **principe de précaution SAU** :
+$$P_{\text{triage}} = \max\Big(P_{\text{composite}}, \; P_{\text{pneumonie}}, \; P_{\text{AVC}}\Big)$$
+
+- **Niveau 1 : URGENT ($P_{\text{triage}} \ge 0{,}70$)** — Prise en charge prioritaire (< 15 min), monitorage continu et avis spécialiste immédiat.
+- **Niveau 2 : À SURVEILLER ($0{,}40 \le P_{\text{triage}} < 0{,}70$)** — Surveillance rapprochée (< 2 heures), bilans complémentaires.
+- **Niveau 3 : NON URGENT ($P_{\text{triage}} < 0{,}40$)** — Filière ambulatoire standard.
 
 ---
 
@@ -192,37 +203,47 @@ $$P(\text{urgent}) = \frac{1}{1 + e^{-z}}$$
 - En revanche, la spécificité n'est que de **$64,96\%$** (82 clichés sains classés à tort en pneumonie).
 - *Implication clinique :* En situation d'urgence, maximiser le rappel évite des pertes de chances vitales. Néanmoins, un seuil d'exploitation rehaussé (autour de $p \ge 0,70$) permet d'atteindre une spécificité supérieure à $80\%$ si le service souhaite éviter la surcharge en période d'affluence.
 
-### 8.2 Agent 2 (Random Forest) : Le Défi de l'Extrême Déséquilibre
+### 8.2 Agent 2 (Random Forest) : Risque de Terrain Neuro-Vasculaire vs AVC Aigu
 - La prévalence naturelle de l'AVC dans la cohorte est de **$4,87\%$** (50 cas positifs sur 1 022 dans le test set).
-- Le modèle détecte **$68\%$** des AVC (34/50).
-- La précision est de **$19\%$** : pour 1 cas d'AVC confirmé, le modèle génère 4 fausses alertes. Ce ratio est standard et attendu en détection de risque cardiovasculaire aigu en médecine préventive, où le coût d'un faux négatif (décès ou séquelles irréversibles) dépasse de plusieurs ordres de grandeur le coût d'une fausse alerte (bilan sanguin et surveillance).
+- Le modèle réentraîné détecte **$80\%$** des cas d'AVC (40/50).
+- La précision est de **$15,1\%$** : pour 1 cas d'AVC confirmé, le modèle génère environ 5 à 6 alertes de terrain à risque élevé.
+- *Distinction clinique essentielle :* Le modèle prédit la vulnérabilité globale à long terme d'un patient à partir de ses antécédents (âge, HTA, cardiopathie, glycémie) et non la survenue d'un AVC aigu en temps réel (qui relève de l'imagerie cérébrale par angioscanner ou IRM). Les libellés d'interface ont été ajustés pour refléter avec rigueur ce statut de « terrain à risque neuro-vasculaire ».
 
 ---
 
 ## 9. Anomalies Identifiées et Corrections Implémentées
 
-L'audit technique initial a mis en lumière plusieurs anomalies critiques, toutes corrigées :
+L'audit technique approfondi a mis en lumière plusieurs anomalies critiques, toutes intégralement résolues :
 
 ```
-┌───────────────────────────────────┬───────────────────────────────────┐
-│     ANOMALIE AUDITÉE INITIALE     │        CORRECTION APPORTÉE        │
-├───────────────────────────────────┼───────────────────────────────────┤
-│ 1. Écrasement du signal clinique  │ Échantillonnage stratifié en      │
-│    par le signal radio (ratio 6.6)│ 4 quadrants équilibrés. Poids     │
-│    AVC seul donnait 2.1% urgence! │ clinique réhabilité (51.8% alerte)│
-├───────────────────────────────────┼───────────────────────────────────┤
-│ 2. Contamination de split         │ Séparation étanche en 2 moitiés   │
-│    (preds_test.csv utilisé brut)  │ disjointes Split A / Split B      │
-├───────────────────────────────────┼───────────────────────────────────┤
-│ 3. Pas de validation d'entrées    │ Contrôles physiologiques stricts  │
-│    dans l'API server.py           │ (âge, glycémie, IMC, catégories)  │
-├───────────────────────────────────┼───────────────────────────────────┤
-│ 4. Risque d'image corrompue / OOD │ Contrôle d'intégrité Pillow       │
-│    provoquant des erreurs 500     │ vérifiant format, flux et taille  │
-├───────────────────────────────────┼───────────────────────────────────┤
-│ 5. Délais affichés non prouvés    │ Contextualisation des paliers MTS │
-│    sans avertissement médical     │ et disclaimer éthique explicite   │
-└───────────────────────────────────┴───────────────────────────────────┘
+┌────────────────────────────────────────┬────────────────────────────────────────┐
+│       ANOMALIE AUDITÉE CRITIQUE        │          CORRECTION APPORTÉE           │
+├────────────────────────────────────────┼────────────────────────────────────────┤
+│ 1. Écrasement du signal clinique       │ Échantillonnage stratifié en           │
+│    par le signal radio (ratio initial) │ 4 quadrants équilibrés.                │
+├────────────────────────────────────────┼────────────────────────────────────────┤
+│ 2. Contamination de split              │ Séparation étanche en 2 moitiés        │
+│    (preds_test.csv utilisé brut)       │ disjointes Split A / Split B           │
+├────────────────────────────────────────┼────────────────────────────────────────┤
+│ 3. Sous-triage mathématique unilatéral │ Principe de précaution clinique SAU    │
+│    (logit additif plafonnait la        │ (règle du maximum : P_triage = max     │
+│    pneumonie seule à 42% !)            │ de la détresse unilatérale et logit)   │
+├────────────────────────────────────────┼────────────────────────────────────────┤
+│ 4. Inférence bloquant l'event-loop     │ Encapsulation non-bloquante dans       │
+│    asyncio dans FastAPI                │ asyncio.to_thread pour CNN et RF       │
+├────────────────────────────────────────┼────────────────────────────────────────┤
+│ 5. Risque Path Traversal sur images    │ Validation stricte par                 │
+│    (contrôle startswith fragile)       │ Path.is_relative_to(CHEST_XRAY_DIR)    │
+├────────────────────────────────────────┼────────────────────────────────────────┤
+│ 6. CORS permissif invalide             │ Restriction aux origines locales       │
+│    (wildcard * avec allow_credentials) │ avec regex conforme au standard W3C    │
+├────────────────────────────────────────┼────────────────────────────────────────┤
+│ 7. Données de santé en clair & I/O     │ Pseudonymisation des données patients  │
+│    concurrente dans l'historique JSON  │ et verrouillage thread-safe (Lock)     │
+├────────────────────────────────────────┼────────────────────────────────────────┤
+│ 8. Pas de validation d'entrées         │ Contrôles physiologiques stricts       │
+│    dans l'API server.py                │ (âge, glycémie, IMC, catégories)       │
+└────────────────────────────────────────┴────────────────────────────────────────┘
 ```
 
 ---
@@ -268,22 +289,36 @@ Pour déployer un modèle multimodal unifié dans un contexte clinique réel, il
 ## 12. Banc de Tests et Démonstration Fonctionnelle
 
 ### 12.1 Suite de Tests Automatisés (`tests/test_system.py`)
-Un banc complet de **11 tests unitaires** a été conçu et exécuté avec succès :
+Un banc complet de **15 tests unitaires et d'intégration** a été conçu et exécuté avec succès :
 
 ```bash
-py tests/test_system.py
+py -m unittest tests/test_system.py -v
 ```
 ```text
-...........
+test_four_clinical_quadrants (tests.test_system.TestAgentDecision) ... ok
+test_model_coefficients_balance (tests.test_system.TestAgentDecision) ... ok
+test_monotonicity (tests.test_system.TestAgentDecision) ... ok
+test_rejection_aberrant_bmi (tests.test_system.TestClinicalInputValidation) ... ok
+test_rejection_aberrant_glucose (tests.test_system.TestClinicalInputValidation) ... ok
+test_rejection_invalid_category (tests.test_system.TestClinicalInputValidation) ... ok
+test_rejection_negative_age (tests.test_system.TestClinicalInputValidation) ... ok
+test_valid_parameters_pass (tests.test_system.TestClinicalInputValidation) ... ok
+test_demo_image_not_found (tests.test_system.TestDemoCLIValidation) ... ok
+test_history_endpoint (tests.test_system.TestFastAPIRestAPI) ... ok
+test_metrics_endpoint (tests.test_system.TestFastAPIRestAPI) ... ok
+test_presets_endpoint (tests.test_system.TestFastAPIRestAPI) ... ok
+test_triage_validation_error_status_422 (tests.test_system.TestFastAPIRestAPI) ... ok
+test_metrics_json_integrity (tests.test_system.TestPresetsAndMetricsIntegrity) ... ok
+test_presets_validity (tests.test_system.TestPresetsAndMetricsIntegrity) ... ok
 ----------------------------------------------------------------------
-Ran 11 tests in 14.038s
+Ran 15 tests in 4.579s
 
 OK
 ```
 
 Les tests valident automatiquement :
 1. L'équilibre des poids $\beta_{\text{image}}$ et $\beta_{\text{clinique}}$ de la régression logistique.
-2. L'absence d'écrasement de l'AVC dans les 4 quadrants cliniques.
+2. L'absence de sous-triage clinique dans les 4 quadrants (détresse aiguë orientée en URGENT).
 3. La stricte monotonicité croissante du score de triage.
 4. Le rejet des âges négatifs ou aberrants (HTTP 422).
 5. Le rejet des glycémies impossibles (HTTP 422).
@@ -293,6 +328,10 @@ Les tests valident automatiquement :
 9. La cohérence des fichiers `metrics.json` de chaque agent.
 10. La gestion des exceptions sur fichiers images manquants dans le CLI `demo.py`.
 11. La validité globale des paramètres d'inférence.
+12. La conformité de l'endpoint `GET /api/metrics` (200 OK avec les 3 agents).
+13. La disponibilité des 4 presets cliniques sur `GET /api/presets`.
+14. La sérialisation pseudonymisée sur `GET /api/history`.
+15. Le rejet strict avec code HTTP 422 sur requête API malformée via TestClient.
 
 ### 12.2 Démonstration en Ligne de Commande (`demo.py`)
 ```bash
