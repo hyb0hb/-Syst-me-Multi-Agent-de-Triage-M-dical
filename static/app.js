@@ -127,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ========================================================
-    // 2. Interactive Workflow Stages
+    // 2. Interactive Workflow Stages (Parallel Multi-Agent)
     // ========================================================
     function setWorkflowStep(stepNumber) {
         currentWorkflowStep = stepNumber;
@@ -144,9 +144,32 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
+        const forkConnector = document.querySelector(".fork-connector");
+        const joinConnector = document.querySelector(".join-connector");
+
         stageItems.forEach((item) => {
             const s = parseInt(item.dataset.stage, 10);
-            item.classList.toggle("active", s === stepNumber);
+            if (stepNumber === 1) {
+                item.classList.toggle("active", s === 1);
+                item.classList.remove("completed", "processing");
+                if (forkConnector) forkConnector.classList.remove("active");
+                if (joinConnector) joinConnector.classList.remove("active");
+            } else if (stepNumber === 2 || stepNumber === 3) {
+                // Parallel phase: Agent 1 (stage 2) and Agent 2 (stage 3) execute simultaneously!
+                const isStage1 = s === 1;
+                const isParallel = s === 2 || s === 3;
+                item.classList.toggle("completed", isStage1);
+                item.classList.toggle("active", isParallel);
+                if (s === 4) item.classList.remove("active", "completed", "processing");
+                if (forkConnector) forkConnector.classList.add("active");
+                if (joinConnector) joinConnector.classList.remove("active");
+            } else if (stepNumber >= 4) {
+                // Convergence phase: Final Decision
+                item.classList.toggle("completed", s < 4);
+                item.classList.toggle("active", s === 4);
+                if (forkConnector) forkConnector.classList.add("active");
+                if (joinConnector) joinConnector.classList.add("active");
+            }
         });
     }
 
@@ -389,13 +412,16 @@ document.addEventListener("DOMContentLoaded", () => {
             formData.set("sample_image_name", currentSampleName);
         }
 
-        // 3. Step progression : Step 2 (CNN is analyzing the image)
+        // 3. Step progression : Step 2 (Parallel Execution of Agent 1 & Agent 2)
         setWorkflowStep(2);
+        const stage1 = document.getElementById("stage1");
         const stage2 = document.getElementById("stage2");
         const stage3 = document.getElementById("stage3");
         const stage4 = document.getElementById("stage4");
 
+        if (stage1) stage1.classList.add("completed");
         if (stage2) stage2.classList.add("processing");
+        if (stage3) stage3.classList.add("processing");
 
         try {
             const response = await fetch("/api/triage", {
@@ -403,7 +429,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: formData
             });
 
-            if (stage2) stage2.classList.remove("processing");
+            if (stage2) {
+                stage2.classList.remove("processing");
+                stage2.classList.add("completed");
+            }
+            if (stage3) {
+                stage3.classList.remove("processing");
+                stage3.classList.add("completed");
+            }
 
             if (!response.ok) {
                 const errData = await response.json();
@@ -412,16 +445,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
 
-            // Cascade fluide et rapide sur les agents suivants (150ms chacun)
-            setWorkflowStep(3);
-            if (stage3) stage3.classList.add("processing");
-            await new Promise((r) => setTimeout(r, 150));
-            if (stage3) stage3.classList.remove("processing");
-
+            // Transition vers Agent 3 : Décision SAU & Convergence (200ms)
             setWorkflowStep(4);
             if (stage4) stage4.classList.add("processing");
-            await new Promise((r) => setTimeout(r, 150));
-            if (stage4) stage4.classList.remove("processing");
+            await new Promise((r) => setTimeout(r, 220));
+            if (stage4) {
+                stage4.classList.remove("processing");
+                stage4.classList.add("completed");
+            }
 
             renderResults(data);
             addRecentAssessment(data);

@@ -159,13 +159,17 @@
                 </section>
 
                 <!-- ========================================================
-                     4. AGENT WORKFLOW STEPPER (4 Connected Stages)
+                     4. AGENT WORKFLOW STEPPER (Parallel Architecture: Agent 1 // Agent 2 -> Agent 3)
                 ======================================================== -->
                 <section class="workflow-card-section" id="agent-workflow">
                     <div class="workflow-card-header">
                         <div class="workflow-title-box">
                             <span class="workflow-lightning">⚡</span>
                             <h3 class="workflow-title">Agent Workflow</h3>
+                            <span class="workflow-parallel-badge">
+                                <span class="badge-dot"></span>
+                                Architecture Parallèle Multimodale
+                            </span>
                         </div>
 
                         <a href="#about" class="workflow-view-details">
@@ -176,84 +180,118 @@
                         </a>
                     </div>
 
-                    <div class="workflow-stages-grid">
-                        <!-- Step 1 -->
-                        <div class="workflow-stage-item active" data-stage="1" id="stage1">
-                            <span class="step-num-badge">1</span>
-                            <div class="stage-icon-circle blue">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 4v16" />
-                                    <path d="M8 8a4 4 0 0 0-4 4c0 3 2 6 5 7" />
-                                    <path d="M16 8a4 4 0 0 1 4 4c0 3-2 6-5 7" />
-                                </svg>
-                            </div>
-                            <div class="stage-info">
-                                <h4 class="stage-name">Patient Input</h4>
-                                <p class="stage-sub">Upload X-ray + Clinical Data</p>
+                    <div class="workflow-stages-grid workflow-parallel-grid">
+                        <!-- Step 1 : Patient Input -->
+                        <div class="workflow-col workflow-col-input">
+                            <div class="workflow-stage-item active" data-stage="1" id="stage1">
+                                <span class="step-num-badge">1</span>
+                                <div class="stage-icon-circle blue">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 4v16" />
+                                        <path d="M8 8a4 4 0 0 0-4 4c0 3 2 6 5 7" />
+                                        <path d="M16 8a4 4 0 0 1 4 4c0 3-2 6-5 7" />
+                                    </svg>
+                                </div>
+                                <div class="stage-info">
+                                    <div class="stage-name-row">
+                                        <h4 class="stage-name">Entrée Patient</h4>
+                                        <span class="stage-type-pill pill-blue">Multimodal</span>
+                                    </div>
+                                    <p class="stage-sub">Radio Thorax + Clinique</p>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="stage-connector-arrow">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M5 12h14M12 5l7 7-7 7" />
+                        <!-- Fork Connector (Branching into 2 parallel agents) -->
+                        <div class="workflow-connector-branch fork-connector" title="Exécution Parallèle (Simultanée)">
+                            <div class="branch-connector-pill">
+                                <span>PARALLÈLE</span>
+                            </div>
+                            <svg class="connector-branch-svg" viewBox="0 0 44 132" preserveAspectRatio="none">
+                                <defs>
+                                    <marker id="arrow-fork" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+                                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="currentColor" />
+                                    </marker>
+                                </defs>
+                                <path class="branch-path fork-path-top" d="M 1 66 H 10 C 22 66, 22 30, 36 30" marker-end="url(#arrow-fork)" />
+                                <path class="branch-path fork-path-bottom" d="M 1 66 H 10 C 22 66, 22 102, 36 102" marker-end="url(#arrow-fork)" />
                             </svg>
                         </div>
 
-                        <!-- Step 2 -->
-                        <div class="workflow-stage-item" data-stage="2" id="stage2">
-                            <span class="step-num-badge">2</span>
-                            <div class="stage-icon-circle cyan">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path
-                                        d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-4.04z" />
-                                    <path
-                                        d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-4.04z" />
-                                </svg>
+                        <!-- Parallel Column : Agent 1 (Vision) & Agent 2 (Clinique) -->
+                        <div class="workflow-col workflow-col-parallel">
+                            <!-- Step 2 : Agent 1 - CNN -->
+                            <div class="workflow-stage-item parallel-stage" data-stage="2" id="stage2">
+                                <span class="step-num-badge">2</span>
+                                <div class="stage-icon-circle cyan">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path
+                                            d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-4.04z" />
+                                        <path
+                                            d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-4.04z" />
+                                    </svg>
+                                </div>
+                                <div class="stage-info">
+                                    <div class="stage-name-row">
+                                        <h4 class="stage-name">Agent 1 – Vision CNN</h4>
+                                        <span class="stage-type-pill pill-cyan">Thorax</span>
+                                    </div>
+                                    <p class="stage-sub">MobileNetV2 &bull; Pneumonie</p>
+                                </div>
                             </div>
-                            <div class="stage-info">
-                                <h4 class="stage-name">Agent 1 – CNN</h4>
-                                <p class="stage-sub">Detect Pneumonia</p>
+
+                            <!-- Step 3 : Agent 2 - RF -->
+                            <div class="workflow-stage-item parallel-stage" data-stage="3" id="stage3">
+                                <span class="step-num-badge">2</span>
+                                <div class="stage-icon-circle purple">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                                    </svg>
+                                </div>
+                                <div class="stage-info">
+                                    <div class="stage-name-row">
+                                        <h4 class="stage-name">Agent 2 – Clinique RF</h4>
+                                        <span class="stage-type-pill pill-purple">AVC</span>
+                                    </div>
+                                    <p class="stage-sub">Random Forest &bull; Risque AVC</p>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="stage-connector-arrow">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M5 12h14M12 5l7 7-7 7" />
+                        <!-- Join Connector (Converging both agents into Agent 3) -->
+                        <div class="workflow-connector-branch join-connector" title="Convergence Multimodale">
+                            <div class="branch-connector-pill pill-fusion">
+                                <span>FUSION</span>
+                            </div>
+                            <svg class="connector-branch-svg" viewBox="0 0 44 132" preserveAspectRatio="none">
+                                <defs>
+                                    <marker id="arrow-join" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+                                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="currentColor" />
+                                    </marker>
+                                </defs>
+                                <path class="branch-path join-path-top" d="M 1 30 C 16 30, 18 66, 30 66" />
+                                <path class="branch-path join-path-bottom" d="M 1 102 C 16 102, 18 66, 30 66" />
+                                <path class="branch-path join-path-center" d="M 30 66 H 36" marker-end="url(#arrow-join)" />
                             </svg>
                         </div>
 
-                        <!-- Step 3 -->
-                        <div class="workflow-stage-item" data-stage="3" id="stage3">
-                            <span class="step-num-badge">3</span>
-                            <div class="stage-icon-circle purple">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                                </svg>
-                            </div>
-                            <div class="stage-info">
-                                <h4 class="stage-name">Agent 2 – RF</h4>
-                                <p class="stage-sub">Predict Stroke</p>
-                            </div>
-                        </div>
-
-                        <div class="stage-connector-arrow">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M5 12h14M12 5l7 7-7 7" />
-                            </svg>
-                        </div>
-
-                        <!-- Step 4 -->
-                        <div class="workflow-stage-item" data-stage="4" id="stage4">
-                            <span class="step-num-badge">4</span>
-                            <div class="stage-icon-circle green">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                    <path d="m9 12 2 2 4-4" />
-                                </svg>
-                            </div>
-                            <div class="stage-info">
-                                <h4 class="stage-name">Agent 3 – LR</h4>
-                                <p class="stage-sub">Final Decision</p>
+                        <!-- Step 4 : Agent 3 - LR -->
+                        <div class="workflow-col workflow-col-decision">
+                            <div class="workflow-stage-item" data-stage="4" id="stage4">
+                                <span class="step-num-badge">3</span>
+                                <div class="stage-icon-circle green">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                        <path d="m9 12 2 2 4-4" />
+                                    </svg>
+                                </div>
+                                <div class="stage-info">
+                                    <div class="stage-name-row">
+                                        <h4 class="stage-name">Agent 3 – Décision</h4>
+                                        <span class="stage-type-pill pill-green">Triage SAU</span>
+                                    </div>
+                                    <p class="stage-sub">Rég. Logistique + Manchester</p>
+                                </div>
                             </div>
                         </div>
                     </div>
