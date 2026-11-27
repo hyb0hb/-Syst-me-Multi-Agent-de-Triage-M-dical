@@ -34,6 +34,8 @@ class TestAgentDecision(unittest.TestCase):
         model_path = ROOT / "agent_decision" / "model_lr.joblib"
         assert model_path.exists(), f"Le fichier modèle {model_path} est manquant."
         cls.model = joblib.load(model_path)
+        if not hasattr(cls.model, "multi_class"):
+            cls.model.multi_class = "auto"
 
     def test_model_coefficients_balance(self):
         """Vérifie que les coefficients radio et clinique sont tous deux positifs et équilibrés."""
