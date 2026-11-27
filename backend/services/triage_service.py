@@ -190,9 +190,8 @@ async def run_full_triage(
     """Orchestration de bout en bout des trois agents avec génération du rapport complet."""
     cnn_model, rf_model, lr_model = get_models()
 
-    # Charge les métriques uniquement si le cache est vide (optimisation)
-    if not METRICS_CACHE:
-        load_metrics()
+    # Charge et synchronise dynamiquement les métriques si modifiées sur le disque
+    load_metrics()
 
     # Agent 1 : Vision
     try:

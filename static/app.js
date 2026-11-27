@@ -80,16 +80,43 @@ document.addEventListener("DOMContentLoaded", () => {
     const chartValRf = document.getElementById("chartValRf");
     const chartValLr = document.getElementById("chartValLr");
 
-    // Chart Data Models (Reference evaluation metrics from training)
-    const metricsData = {
-        roc_auc: { cnn: 0.965, rf: 0.846, lr: 0.879 },
-        precision: { cnn: 0.824, rf: 0.151, lr: 0.924 },
-        recall: { cnn: 0.985, rf: 0.800, lr: 0.685 },
-        f1: { cnn: 0.897, rf: 0.254, lr: 0.787 }
-    };
+    // Données de métriques 100% dynamiques issues du résultat serveur (aucune valeur en dur)
+    let metricsData = {};
+    let activeMetricTab = "roc_auc";
+
+    // Helper: Extraire de manière résiliente une métrique depuis un objet brut
+    function getMetricValue(agentData, metricKey) {
+        if (!agentData) return null;
+        if (metricKey === "roc_auc" && agentData.roc_auc != null) {
+            return parseFloat(agentData.roc_auc);
+        }
+        const rep = agentData.report || {};
+        if (metricKey === "accuracy") {
+            if (rep.accuracy != null) return parseFloat(rep.accuracy);
+            if (rep["weighted avg"]?.recall != null) return parseFloat(rep["weighted avg"].recall);
+        }
+        // Trouver la classe d'intérêt (Urgent, PNEUMONIA, 1)
+        const targetClass = rep["Urgent"] || rep["PNEUMONIA"] || rep["1"] || rep["urgent"] || rep["pneumonia"];
+        if (targetClass) {
+            if (metricKey === "recall" && targetClass.recall != null) return parseFloat(targetClass.recall);
+            if (metricKey === "precision" && targetClass.precision != null) return parseFloat(targetClass.precision);
+            if (metricKey === "f1" && (targetClass["f1-score"] != null || targetClass.f1 != null)) {
+                return parseFloat(targetClass["f1-score"] ?? targetClass.f1);
+            }
+        }
+        // Fallback macro avg
+        if (rep["macro avg"]) {
+            if (metricKey === "recall" && rep["macro avg"].recall != null) return parseFloat(rep["macro avg"].recall);
+            if (metricKey === "precision" && rep["macro avg"].precision != null) return parseFloat(rep["macro avg"].precision);
+            if (metricKey === "f1" && (rep["macro avg"]["f1-score"] != null || rep["macro avg"].f1 != null)) {
+                return parseFloat(rep["macro avg"]["f1-score"] ?? rep["macro avg"].f1);
+            }
+        }
+        return null;
+    }
 
     // ========================================================
-    // 1. API Health Check & Metrics Initialization
+    // 1. API Health Check & Dynamic Metrics Synchronization
     // ========================================================
     async function checkApiConnection() {
         try {
@@ -99,23 +126,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 apiStatusDot.className = "status-dot green";
                 apiStatusText.textContent = "FastAPI · Connected";
 
-                // Update Reference Cards & Chart dynamically
-                if (data.image && data.image.roc_auc) {
-                    const cnnVal = parseFloat(data.image.roc_auc);
-                    document.getElementById("refCnnAuc").textContent = cnnVal.toFixed(3);
-                    metricsData.roc_auc.cnn = cnnVal;
+                // 1. Alimentation 100% dynamique depuis le résultat calculé par le serveur
+                if (data.summary) {
+                    metricsData = data.summary;
+                } else {
+                    metricsData = {};
+                    const metricKeys = ["roc_auc", "accuracy", "recall", "precision", "f1"];
+                    for (const m of metricKeys) {
+                        const cnnV = getMetricValue(data.image, m);
+                        const rfV = getMetricValue(data.clinique, m);
+                        const lrV = getMetricValue(data.decision, m);
+                        if (cnnV !== null || rfV !== null || lrV !== null) {
+                            metricsData[m] = { cnn: cnnV, rf: rfV, lr: lrV };
+                        }
+                    }
                 }
-                if (data.clinique && data.clinique.roc_auc) {
-                    const rfVal = parseFloat(data.clinique.roc_auc);
-                    document.getElementById("refRfAuc").textContent = rfVal.toFixed(3);
-                    metricsData.roc_auc.rf = rfVal;
+
+                // 2. Synchronisation de la formule de consensus de l'Agent 3 (sans modifier le code)
+                if (formulaChipBox) {
+                    if (data.decision_formula) {
+                        formulaChipBox.innerHTML = `<code>${data.decision_formula}</code>`;
+                    } else if (data.decision?.coefficients) {
+                        const c = data.decision.coefficients;
+                        const cImg = parseFloat(c.image ?? 2.99).toFixed(2);
+                        const cClin = parseFloat(c.clinique ?? 4.24).toFixed(2);
+                        const cInt = parseFloat(c.intercept ?? -3.31);
+                        const sign = cInt >= 0 ? "+" : "-";
+                        formulaChipBox.innerHTML = `<code>z = (${cImg} × P_img) + (${cClin} × P_clin) ${sign} ${Math.abs(cInt).toFixed(2)}</code>`;
+                    }
                 }
-                if (data.decision && data.decision.roc_auc) {
-                    const lrVal = parseFloat(data.decision.roc_auc);
-                    document.getElementById("refLrAuc").textContent = lrVal.toFixed(3);
-                    metricsData.roc_auc.lr = lrVal;
-                }
-                updateChart("roc_auc");
+
+                // 3. Mise à jour dynamique du graphique et des cartes de référence
+                updateChart(activeMetricTab);
             } else {
                 throw new Error("HTTP error " + res.status);
             }
@@ -184,16 +226,45 @@ document.addEventListener("DOMContentLoaded", () => {
     // 3. Model Performance Tabs & Bar Chart Animation
     // ========================================================
     function updateChart(tabKey) {
-        const d = metricsData[tabKey] || metricsData.roc_auc;
+        if (tabKey) activeMetricTab = tabKey;
+        const d = (metricsData && metricsData[activeMetricTab]) ? metricsData[activeMetricTab] : null;
 
-        chartValCnn.textContent = d.cnn.toFixed(3);
-        chartValRf.textContent = d.rf.toFixed(3);
-        chartValLr.textContent = d.lr.toFixed(3);
+        const cnnVal = (d && d.cnn != null) ? Number(d.cnn).toFixed(3) : "—";
+        const rfVal = (d && d.rf != null) ? Number(d.rf).toFixed(3) : "—";
+        const lrVal = (d && d.lr != null) ? Number(d.lr).toFixed(3) : "—";
 
-        // Animate heights (0 to 100%)
-        chartBarCnn.style.height = `${(d.cnn * 100).toFixed(1)}%`;
-        chartBarRf.style.height = `${(d.rf * 100).toFixed(1)}%`;
-        chartBarLr.style.height = `${(d.lr * 100).toFixed(1)}%`;
+        chartValCnn.textContent = cnnVal;
+        chartValRf.textContent = rfVal;
+        chartValLr.textContent = lrVal;
+
+        // Animer hauteurs des barres (0 à 100%) selon les valeurs réelles
+        chartBarCnn.style.height = (d && d.cnn != null) ? `${Math.min(Math.max(d.cnn * 100, 4), 100).toFixed(1)}%` : "0%";
+        chartBarRf.style.height = (d && d.rf != null) ? `${Math.min(Math.max(d.rf * 100, 4), 100).toFixed(1)}%` : "0%";
+        chartBarLr.style.height = (d && d.lr != null) ? `${Math.min(Math.max(d.lr * 100, 4), 100).toFixed(1)}%` : "0%";
+
+        // Mise à jour synchronisée des 3 cartes mini "Performance Metrics"
+        const metricLabels = {
+            roc_auc: "ROC-AUC",
+            accuracy: "Accuracy",
+            recall: "Recall",
+            precision: "Precision",
+            f1: "F1-score"
+        };
+        const currentLabel = metricLabels[activeMetricTab] || activeMetricTab.toUpperCase();
+
+        const refCnnAuc = document.getElementById("refCnnAuc");
+        const refRfAuc = document.getElementById("refRfAuc");
+        const refLrAuc = document.getElementById("refLrAuc");
+        if (refCnnAuc) refCnnAuc.textContent = cnnVal;
+        if (refRfAuc) refRfAuc.textContent = rfVal;
+        if (refLrAuc) refLrAuc.textContent = lrVal;
+
+        const refCnnLabel = document.getElementById("refCnnLabel");
+        const refRfLabel = document.getElementById("refRfLabel");
+        const refLrLabel = document.getElementById("refLrLabel");
+        if (refCnnLabel) refCnnLabel.innerHTML = `${currentLabel}<br><small>(CNN)</small>`;
+        if (refRfLabel) refRfLabel.innerHTML = `${currentLabel}<br><small>(RF)</small>`;
+        if (refLrLabel) refLrLabel.innerHTML = `${currentLabel}<br><small>(LR)</small>`;
     }
 
     perfTabs.forEach((tab) => {
@@ -578,10 +649,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ========================================================
-    // 9. Startup Initialization
+    // 9. Startup Initialization & Live Auto-sync
     // ========================================================
     checkApiConnection();
     loadPresets();
     updateChart("roc_auc");
     setWorkflowStep(1);
+
+    // Synchronisation automatique en direct (mise à jour instantanée si Agent 3 ou un modèle change)
+    window.addEventListener("focus", checkApiConnection);
+    setInterval(checkApiConnection, 10000);
 });

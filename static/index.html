@@ -558,7 +558,7 @@
                                             <span class="agent-prob-value" id="agent3ScoreText">78.1%</span>
                                         </div>
                                         <div class="formula-chip-box" id="formulaChipBox">
-                                            <code>z = (2.99 × P_img) + (4.24 × P_clin) - 3.31</code>
+                                            <code>Chargement de la formule...</code>
                                         </div>
                                     </div>
                                 </div>
@@ -596,8 +596,8 @@
                                             <path d="M16 8a4 4 0 0 1 4 4c0 3-2 6-5 7" />
                                         </svg>
                                     </div>
-                                    <span class="metric-large-num" id="refCnnAuc">0.965</span>
-                                    <span class="metric-sub-label">ROC-AUC<br><small>(CNN)</small></span>
+                                    <span class="metric-large-num" id="refCnnAuc">—</span>
+                                    <span class="metric-sub-label" id="refCnnLabel">ROC-AUC<br><small>(CNN)</small></span>
                                 </div>
 
                                 <!-- Metric 2 : RF -->
@@ -607,8 +607,8 @@
                                             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                                         </svg>
                                     </div>
-                                    <span class="metric-large-num" id="refRfAuc">0.846</span>
-                                    <span class="metric-sub-label">ROC-AUC<br><small>(RF)</small></span>
+                                    <span class="metric-large-num" id="refRfAuc">—</span>
+                                    <span class="metric-sub-label" id="refRfLabel">ROC-AUC<br><small>(RF)</small></span>
                                 </div>
 
                                 <!-- Metric 3 : LR -->
@@ -619,8 +619,8 @@
                                             <path d="m9 12 2 2 4-4" />
                                         </svg>
                                     </div>
-                                    <span class="metric-large-num" id="refLrAuc">0.879</span>
-                                    <span class="metric-sub-label">ROC-AUC<br><small>(LR)</small></span>
+                                    <span class="metric-large-num" id="refLrAuc">—</span>
+                                    <span class="metric-sub-label" id="refLrLabel">ROC-AUC<br><small>(LR)</small></span>
                                 </div>
                             </div>
                         </div>
@@ -717,8 +717,9 @@
                             <!-- Metric Selection Tabs -->
                             <div class="perf-tabs-bar">
                                 <button type="button" class="perf-tab-btn active" data-tab="roc_auc">ROC-AUC</button>
-                                <button type="button" class="perf-tab-btn" data-tab="precision">Precision</button>
+                                <button type="button" class="perf-tab-btn" data-tab="accuracy">Accuracy</button>
                                 <button type="button" class="perf-tab-btn" data-tab="recall">Recall</button>
+                                <button type="button" class="perf-tab-btn" data-tab="precision">Precision</button>
                                 <button type="button" class="perf-tab-btn" data-tab="f1">F1-score</button>
                             </div>
 
@@ -727,9 +728,9 @@
                                 <div class="chart-bars-wrap">
                                     <!-- Bar 1 : CNN -->
                                     <div class="chart-col">
-                                        <span class="bar-val-label" id="chartValCnn">0.965</span>
+                                        <span class="bar-val-label" id="chartValCnn">—</span>
                                         <div class="bar-track">
-                                            <div class="bar-fill bar-blue" id="chartBarCnn" style="height: 96.5%;">
+                                            <div class="bar-fill bar-blue" id="chartBarCnn" style="height: 0%;">
                                             </div>
                                         </div>
                                         <span class="bar-axis-label">CNN<br><small>(Image)</small></span>
@@ -737,9 +738,9 @@
 
                                     <!-- Bar 2 : RF -->
                                     <div class="chart-col">
-                                        <span class="bar-val-label" id="chartValRf">0.846</span>
+                                        <span class="bar-val-label" id="chartValRf">—</span>
                                         <div class="bar-track">
-                                            <div class="bar-fill bar-purple" id="chartBarRf" style="height: 84.6%;">
+                                            <div class="bar-fill bar-purple" id="chartBarRf" style="height: 0%;">
                                             </div>
                                         </div>
                                         <span class="bar-axis-label">RF<br><small>(Clinical)</small></span>
@@ -747,9 +748,9 @@
 
                                     <!-- Bar 3 : LR -->
                                     <div class="chart-col">
-                                        <span class="bar-val-label" id="chartValLr">0.879</span>
+                                        <span class="bar-val-label" id="chartValLr">—</span>
                                         <div class="bar-track">
-                                            <div class="bar-fill bar-green" id="chartBarLr" style="height: 87.9%;">
+                                            <div class="bar-fill bar-green" id="chartBarLr" style="height: 0%;">
                                             </div>
                                         </div>
                                         <span class="bar-axis-label">LR<br><small>(Combined)</small></span>

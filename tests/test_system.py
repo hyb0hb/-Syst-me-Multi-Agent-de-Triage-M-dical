@@ -200,13 +200,21 @@ class TestFastAPIRestAPI(unittest.TestCase):
         cls.client = TestClient(server.app)
 
     def test_metrics_endpoint(self):
-        """Vérifie que GET /api/metrics répond 200 avec les 3 agents."""
+        """Vérifie que GET /api/metrics répond 200 avec les 3 agents et le summary dynamique."""
         res = self.client.get("/api/metrics")
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertIn("image", data)
         self.assertIn("clinique", data)
         self.assertIn("decision", data)
+        # Vérification du summary dynamique pour recall, accuracy, precision, f1, roc_auc
+        self.assertIn("summary", data)
+        for metric in ["roc_auc", "accuracy", "recall", "precision", "f1"]:
+            self.assertIn(metric, data["summary"])
+            for agent in ["cnn", "rf", "lr"]:
+                self.assertIn(agent, data["summary"][metric])
+                self.assertGreaterEqual(data["summary"][metric][agent], 0.0)
+        self.assertIn("decision_formula", data)
 
     def test_presets_endpoint(self):
         """Vérifie que GET /api/presets retourne les 4 cas cliniques."""
