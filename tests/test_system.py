@@ -380,6 +380,9 @@ class TestAgent3ThresholdAlignmentAndExperiment(unittest.TestCase):
             os.environ["MEDTRIAGE_LR_PATH"] = str(exp_lr)
             _, _, loaded_lr = model_service.get_models()
             self.assertAlmostEqual(float(loaded_lr.coef_[0][0]), 2.7488, places=3)
+            synced_met = model_service.load_metrics(force_reload=True)
+            self.assertAlmostEqual(float(synced_met["coefficients"]["image"]), 2.7488, places=3)
+            self.assertIn("2.75", synced_met["decision_formula"])
         finally:
             if prev is None:
                 os.environ.pop("MEDTRIAGE_LR_PATH", None)
@@ -387,6 +390,7 @@ class TestAgent3ThresholdAlignmentAndExperiment(unittest.TestCase):
                 os.environ["MEDTRIAGE_LR_PATH"] = prev
             model_service.MODELS["lr"] = None
             model_service.MODELS_MTIMES.pop("lr", None)
+            model_service.load_metrics(force_reload=True)
 
 
 if __name__ == "__main__":
