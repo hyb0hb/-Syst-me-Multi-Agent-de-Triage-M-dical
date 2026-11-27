@@ -564,11 +564,12 @@ document.addEventListener("DOMContentLoaded", () => {
         agent1Bar.className = `progress-bar-fill ${pImg >= 50 ? "red" : "teal"}`;
         agent1StatusLabel.textContent = agents.image.statut;
 
-        // Agent 2 RF
+        // Agent 2 RF (synchronisé sur seuil_utilise OOF du modèle, par défaut 65%)
         const pClin = agents.clinique.risque_avc;
+        const rfThreshPct = Math.round((agents.clinique.seuil_utilise ?? 0.65) * 100);
         agent2ScoreText.textContent = `${pClin}%`;
         agent2Bar.style.width = `${pClin}%`;
-        agent2Bar.className = `progress-bar-fill ${pClin >= 50 ? "red" : (pClin >= 25 ? "amber" : "teal")}`;
+        agent2Bar.className = `progress-bar-fill ${pClin >= rfThreshPct ? "red" : (pClin >= 40 ? "amber" : "teal")}`;
         agent2StatusLabel.textContent = agents.clinique.statut;
 
         // Agent 3 Consensus

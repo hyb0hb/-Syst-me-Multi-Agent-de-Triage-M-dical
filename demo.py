@@ -274,8 +274,12 @@ def main():
 
     print(f" 1. Agent Vision Médicale (CNN MobileNetV2) :")
     print(f"    -> Probabilité Pneumonie = {p_img:6.1%} [{'SUSPICION OPACITÉS' if p_img >= 0.5 else 'CHAMPS DÉGAGÉS'}]")
+    import json
+    m_path = ROOT / "agent_clinique" / "metrics.json"
+    rf_thresh = float(json.loads(m_path.read_text(encoding="utf-8")).get("threshold", 0.65)) if m_path.exists() else 0.65
+    clin_statut = "RISQUE ÉLEVÉ" if p_clin >= rf_thresh else ("RISQUE MODÉRÉ (À SURVEILLER)" if p_clin >= 0.40 else "RISQUE FAIBLE")
     print(f" 2. Agent Clinique (Random Forest) :")
-    print(f"    -> Probabilité Risque AVC = {p_clin:6.1%} [{'RISQUE ÉLEVÉ' if p_clin >= 0.5 else 'RISQUE MODÉRÉ/FAIBLE'}]")
+    print(f"    -> Probabilité Risque AVC = {p_clin:6.1%} [{clin_statut}]")
     print(f" 3. Agent Décisionnel (Régression Logistique) :")
     print(f"    -> Formule : z = ({c_img:.2f} × P_img) + ({c_clin:.2f} × P_clin) + ({intercept:.2f})")
     print(f"    -> Score d'Urgence Global = {p_final:6.1%}")

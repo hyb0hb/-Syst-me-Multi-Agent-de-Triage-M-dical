@@ -27,6 +27,7 @@ class AgentCliniqueResult(BaseModel):
     nom: str
     risque_avc: float
     statut: str
+    seuil_utilise: Optional[float] = None
     modele: str
     auc: float
 

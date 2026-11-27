@@ -122,6 +122,15 @@ async def process_image_agent(
 # ---------------------------------------------------------------------------
 # Agent 2 : Random Forest
 # ---------------------------------------------------------------------------
+def get_clinical_status(p_clin: float, high_threshold: float = 0.65) -> str:
+    """Interprétation clinique en 3 paliers alignée sur le seuil OOF gelé d'Agent 2."""
+    if p_clin >= high_threshold:
+        return "Risque neuro-vasculaire élevé"
+    if p_clin >= 0.40:
+        return "Risque clinique modéré (à surveiller)"
+    return "Risque clinique faible"
+
+
 def process_clinical_agent(
     rf_model,
     age: float, glucose: float, bmi: Optional[float],
@@ -222,9 +231,10 @@ async def run_full_triage(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Erreur Agent Décision (Régression Logistique) : {e}")
 
-    img_auc  = METRICS_CACHE.get("image",    {}).get("roc_auc", 0.965)
-    clin_auc = METRICS_CACHE.get("clinique", {}).get("roc_auc", 0.846)
-    dec_auc  = METRICS_CACHE.get("decision", {}).get("roc_auc", 0.879)
+    img_auc        = METRICS_CACHE.get("image",    {}).get("roc_auc", 0.965)
+    clin_auc       = METRICS_CACHE.get("clinique", {}).get("roc_auc", 0.851)
+    clin_threshold = float(METRICS_CACHE.get("clinique", {}).get("threshold", 0.65))
+    dec_auc        = METRICS_CACHE.get("decision", {}).get("roc_auc", 0.879)
 
     # Synthèse comorbidités
     comorbidites = [
@@ -253,7 +263,8 @@ async def run_full_triage(
             "clinique": {
                 "nom": "Agent Clinique (Random Forest)",
                 "risque_avc": round(p_clin * 100, 1),
-                "statut": "Risque neuro-vasculaire élevé" if p_clin >= 0.5 else "Risque clinique modéré / faible",
+                "statut": get_clinical_status(p_clin, high_threshold=clin_threshold),
+                "seuil_utilise": round(clin_threshold, 2),
                 "modele": "Random Forest (700 arbres régularisés)",
                 "auc": round(clin_auc, 3),
             },

@@ -23,7 +23,7 @@ if str(ROOT) not in sys.path:
 # Import des modules testés
 import server
 import demo
-from backend.services.triage_service import process_decision_agent
+from backend.services.triage_service import get_clinical_status, process_decision_agent
 
 
 class TestAgentDecision(unittest.TestCase):
@@ -246,6 +246,64 @@ class TestFastAPIRestAPI(unittest.TestCase):
         }
         res = self.client.post("/api/triage", data=payload)
         self.assertEqual(res.status_code, 422)
+
+    def test_agent2_voie1_metrics_and_three_tiers(self):
+        """Vérifie le modèle Voie 1, son seuil OOF gelé et la cohérence des 3 paliers."""
+        with open(ROOT / "agent_clinique" / "metrics.json", encoding="utf-8") as f:
+            met = json.load(f)
+        self.assertGreaterEqual(met["roc_auc"], 0.85)
+        self.assertIn("threshold", met)
+        thresh = float(met["threshold"])
+        self.assertAlmostEqual(thresh, 0.65, places=2)
+        self.assertEqual(get_clinical_status(0.15, thresh), "Risque clinique faible")
+        self.assertEqual(get_clinical_status(0.464, thresh), "Risque clinique modéré (à surveiller)")
+        self.assertEqual(get_clinical_status(0.649, thresh), "Risque clinique modéré (à surveiller)")
+        self.assertEqual(get_clinical_status(0.65, thresh), "Risque neuro-vasculaire élevé")
+
+    def test_agent2_stateless_row_invariance_and_missing_bmi(self):
+        """Vérifie que l'imputation et MissingIndicator gèrent NaN sans fuite ni variance de lot."""
+        import pandas as pd
+        rf = joblib.load(ROOT / "agent_clinique" / "model_rf.joblib")
+        row_ok = pd.DataFrame([{
+            "age": 65.0, "avg_glucose_level": 140.0, "bmi": 28.0,
+            "hypertension": 1, "heart_disease": 0, "gender": "Male",
+            "ever_married": "Yes", "work_type": "Private",
+            "Residence_type": "Urban", "smoking_status": "formerly smoked",
+        }])
+        row_nan = row_ok.copy()
+        row_nan["bmi"] = float("nan")
+        batch = pd.concat([row_ok, row_nan], ignore_index=True)
+        p_batch = rf.predict_proba(batch)[:, 1]
+        p_single_ok = rf.predict_proba(row_ok)[0, 1]
+        p_single_nan = rf.predict_proba(row_nan)[0, 1]
+        self.assertAlmostEqual(float(p_batch[0]), float(p_single_ok), places=6)
+        self.assertAlmostEqual(float(p_batch[1]), float(p_single_nan), places=6)
+        # Missing BMI raises predicted stroke risk due to learned bmi_missing indicator
+        self.assertNotAlmostEqual(float(p_single_ok), float(p_single_nan), places=3)
+
+    def test_all_presets_end_to_end_voie1(self):
+        """Vérifie les 4 presets complets avec les 3 agents et le seuil Voie 1 synchronisé."""
+        expected = {
+            "cas_pneumonie": ("URGENT", "Risque clinique modéré (à surveiller)"),
+            "cas_avc": ("URGENT", "Risque neuro-vasculaire élevé"),
+            "cas_critique_mixte": ("URGENT", "Risque neuro-vasculaire élevé"),
+            "cas_routine": ("NON URGENT", "Risque clinique faible"),
+        }
+        for key, (exp_triage, exp_clin_statut) in expected.items():
+            p = server.PRESETS[key]
+            payload = {
+                "age": p["age"], "gender": p["gender"], "hypertension": p["hypertension"],
+                "heart_disease": p["heart_disease"], "ever_married": p["ever_married"],
+                "work_type": p["work_type"], "residence": p["residence"], "glucose": p["glucose"],
+                "bmi": p["bmi"], "smoking": p["smoking"],
+                "sample_image_name": Path(p["sample_image"]).name,
+            }
+            res = self.client.post("/api/triage", data=payload)
+            self.assertEqual(res.status_code, 200, msg=f"Echec preset {key}: {res.text}")
+            data = res.json()
+            self.assertEqual(data["triage"]["niveau"], exp_triage, msg=key)
+            self.assertEqual(data["agents"]["clinique"]["statut"], exp_clin_statut, msg=key)
+            self.assertAlmostEqual(data["agents"]["clinique"]["seuil_utilise"], 0.65, places=2)
 
 
 if __name__ == "__main__":
