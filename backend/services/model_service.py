@@ -1,6 +1,7 @@
 """Service de chargement, de mise en cache et de réchauffage dynamique des modèles d'IA."""
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, Tuple
 import joblib
@@ -18,6 +19,7 @@ MODELS_MTIMES: Dict[str, float] = {}
 
 METRICS_CACHE: Dict[str, dict] = {}
 METRICS_MTIMES: Dict[str, float] = {}
+_LAST_ENV_LR: str = ""
 
 
 def extract_agent_metrics(raw: dict, agent_key: str) -> dict:
@@ -91,6 +93,12 @@ def load_metrics(force_reload: bool = False) -> Dict[str, Any]:
     (ex: réentraînement d'Agent 3 ou modification des seuils), il est immédiatement rechargé
     sans nécessiter de redémarrage de serveur ni de modification de code.
     """
+    global _LAST_ENV_LR
+    env_lr = os.environ.get("MEDTRIAGE_LR_PATH", "")
+    if env_lr != _LAST_ENV_LR:
+        force_reload = True
+        _LAST_ENV_LR = env_lr
+
     for key, path in METRICS_PATHS.items():
         if not path.exists():
             if key not in METRICS_CACHE:
@@ -105,6 +113,35 @@ def load_metrics(force_reload: bool = False) -> Dict[str, Any]:
         except Exception:
             if key not in METRICS_CACHE:
                 METRICS_CACHE[key] = {}
+
+    # Si MEDTRIAGE_LR_PATH pointe vers le modèle expérimental OOF (Version C), synchroniser ses métriques/poids
+    if env_lr:
+        exp_dir = Path(env_lr).resolve().parent
+        cfg_path = exp_dir / "training_config.json"
+        cmp_path = exp_dir / "comparison_metrics.json"
+        if cfg_path.exists() and cmp_path.exists():
+            try:
+                cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+                cmp_data = json.loads(cmp_path.read_text(encoding="utf-8"))
+                sys_c = cmp_data.get("simulated_quadrant_benchmark_4000", {}).get("System_C2_Voie1_OOFLR_Aligned", {}).get("deployed_p_final_0.70")
+                coefs_oof = cfg.get("agent3_oof_lr", {}).get("coefficients")
+                if sys_c and coefs_oof:
+                    METRICS_CACHE["decision"] = {
+                        "roc_auc": sys_c["roc_auc"],
+                        "coefficients": coefs_oof,
+                        "report": {
+                            "accuracy": sys_c["accuracy_urgent"],
+                            "Urgent": {
+                                "precision": sys_c["precision_urgent"],
+                                "recall": sys_c["recall_urgent"],
+                                "f1-score": sys_c["f1_urgent"],
+                            },
+                        },
+                    }
+            except Exception:
+                pass
+        elif "decision" in METRICS_PATHS and METRICS_PATHS["decision"].exists():
+            METRICS_CACHE["decision"] = json.loads(METRICS_PATHS["decision"].read_text(encoding="utf-8"))
 
     # Extraction des métriques pour chaque agent
     img_met = extract_agent_metrics(METRICS_CACHE.get("image", {}), "image")
@@ -174,10 +211,11 @@ def get_models() -> Tuple[object, object, object]:
             MODELS["rf"] = joblib.load(rf_path)
             MODELS_MTIMES["rf"] = mtime
 
-    # 3. Modèle Régression Logistique (Agent 3 Consensus)
-    lr_path = MODEL_PATHS["lr"]
+    # 3. Modèle Régression Logistique (Agent 3 Consensus — surcharge optionnelle via MEDTRIAGE_LR_PATH)
+    env_lr = os.environ.get("MEDTRIAGE_LR_PATH")
+    lr_path = Path(env_lr) if env_lr else MODEL_PATHS["lr"]
     if lr_path.exists():
-        mtime = lr_path.stat().st_mtime
+        mtime = (str(lr_path), lr_path.stat().st_mtime)
         if MODELS["lr"] is None or MODELS_MTIMES.get("lr") != mtime:
             loaded_lr = joblib.load(lr_path)
             if not hasattr(loaded_lr, "multi_class"):

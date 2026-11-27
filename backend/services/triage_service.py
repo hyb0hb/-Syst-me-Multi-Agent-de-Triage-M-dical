@@ -122,6 +122,15 @@ async def process_image_agent(
 # ---------------------------------------------------------------------------
 # Agent 2 : Random Forest
 # ---------------------------------------------------------------------------
+def get_clinical_status(p_clin: float, high_threshold: float = 0.65) -> str:
+    """Interprétation clinique en 3 paliers alignée sur le seuil OOF gelé d'Agent 2."""
+    if p_clin >= high_threshold:
+        return "Risque neuro-vasculaire élevé"
+    if p_clin >= 0.40:
+        return "Risque clinique modéré (à surveiller)"
+    return "Risque clinique faible"
+
+
 def process_clinical_agent(
     rf_model,
     age: float, glucose: float, bmi: Optional[float],
@@ -148,20 +157,45 @@ def process_clinical_agent(
 # ---------------------------------------------------------------------------
 # Agent 3 : Régression Logistique + Principe de Précaution SAU
 # ---------------------------------------------------------------------------
-def process_decision_agent(lr_model, p_img: float, p_clin: float) -> Tuple:
+def align_clinical_risk(
+    p_clin: float,
+    clin_threshold: float = 0.65,
+    urgent_threshold: float = 0.70,
+) -> float:
+    """Aligne de façon monotone le seuil clinique OOF d'Agent 2 sur le palier URGENT SAU.
+
+    Agent 2 Voie 1 déclare un risque neuro-vasculaire élevé dès ``p_clin >= clin_threshold`` (0,65).
+    Sans cet alignement, la plage ``[0,65 ; 0,70[`` restait bloquée en ``À SURVEILLER`` malgré
+    l'alerte élevée d'Agent 2. Les scores ``< clin_threshold`` restent strictement inchangés.
+    """
+    if p_clin < clin_threshold or clin_threshold >= urgent_threshold:
+        return p_clin
+    if clin_threshold >= 1.0:
+        return urgent_threshold
+    return urgent_threshold + (p_clin - clin_threshold) * (
+        (1.0 - urgent_threshold) / (1.0 - clin_threshold)
+    )
+
+
+def process_decision_agent(
+    lr_model,
+    p_img: float,
+    p_clin: float,
+    clin_threshold: float = 0.65,
+) -> Tuple:
     """Agent 3 (Consensus Régression Logistique + Principe de Précaution SAU).
 
-    Architecture décisionnelle conforme aux recommandations cliniques :
-    1. Score composite logit : fusion des probabilités a posteriori.
-    2. Principe de précaution SAU (règle du maximum / Manchester Triage System) :
-       Le niveau d'urgence est dicté par le risque vital maximal.
-       Si une filière spécialisée détecte une détresse aiguë (P_img >= 0.70 ou P_clin >= 0.50),
-       le triage final s'aligne immédiatement sur URGENT, empêchant tout sous-triage mortel.
+    Architecture décisionnelle alignée sur les deux filières :
+    1. Score composite logit : fusion des probabilités a posteriori brutes ``(P_img, P_clin)``.
+    2. Principe de précaution SAU synchronisé (Manchester Triage System) :
+       si l'imagerie détecte un risque majeur (``P_img >= 0,70``) ou si Agent 2 franchit son seuil
+       OOF certifié (``P_clin >= clin_threshold``, aligné sur ``0,70``), le triage passe en URGENT.
     """
     p_composite = float(lr_model.predict_proba(np.array([[p_img, p_clin]]))[0, 1])
 
-    # Principe de précaution : la sévérité maximale prime sur la dilution additive
-    p_final = max(p_composite, p_img, p_clin)
+    # Principe de précaution synchronisé : alignement du seuil OOF clinique sans altérer < clin_threshold
+    p_clin_aligned = align_clinical_risk(p_clin, clin_threshold=clin_threshold)
+    p_final = max(p_composite, p_img, p_clin_aligned)
 
     # Résolution du palier depuis la constante
     for threshold, niveau, couleur, delai, conduite in _TRIAGE_LEVELS:
@@ -213,18 +247,19 @@ async def run_full_triage(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Erreur Agent Clinique (Random Forest) : {e}")
 
-    # Agent 3 : Consensus (dans un thread pool)
+    img_auc        = METRICS_CACHE.get("image",    {}).get("roc_auc", 0.965)
+    clin_auc       = METRICS_CACHE.get("clinique", {}).get("roc_auc", 0.851)
+    clin_threshold = float(METRICS_CACHE.get("clinique", {}).get("threshold", 0.65))
+    dec_auc        = METRICS_CACHE.get("decision", {}).get("roc_auc", 0.879)
+
+    # Agent 3 : Consensus (dans un thread pool, synchronisé sur clin_threshold)
     try:
         p_final, p_composite, niveau, couleur, delai, conduite, coef_img, coef_clin, intercept = (
-            await asyncio.to_thread(process_decision_agent, lr_model, p_img, p_clin)
+            await asyncio.to_thread(process_decision_agent, lr_model, p_img, p_clin, clin_threshold)
         )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Erreur Agent Décision (Régression Logistique) : {e}")
-
-    img_auc  = METRICS_CACHE.get("image",    {}).get("roc_auc", 0.965)
-    clin_auc = METRICS_CACHE.get("clinique", {}).get("roc_auc", 0.846)
-    dec_auc  = METRICS_CACHE.get("decision", {}).get("roc_auc", 0.879)
 
     # Synthèse comorbidités
     comorbidites = [
@@ -253,7 +288,8 @@ async def run_full_triage(
             "clinique": {
                 "nom": "Agent Clinique (Random Forest)",
                 "risque_avc": round(p_clin * 100, 1),
-                "statut": "Risque neuro-vasculaire élevé" if p_clin >= 0.5 else "Risque clinique modéré / faible",
+                "statut": get_clinical_status(p_clin, high_threshold=clin_threshold),
+                "seuil_utilise": round(clin_threshold, 2),
                 "modele": "Random Forest (700 arbres régularisés)",
                 "auc": round(clin_auc, 3),
             },

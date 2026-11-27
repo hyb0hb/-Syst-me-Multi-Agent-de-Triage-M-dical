@@ -343,9 +343,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!res.ok) throw new Error("Erreur de chargement du cas aléatoire.");
             const data = await res.json();
 
-            // Populate clinical inputs
+            // Populate clinical inputs (preserve missing BMI as blank instead of silent imputation)
             ageInput.value = data.age;
-            bmiInput.value = data.bmi || 24.5;
+            bmiInput.value = (data.bmi !== null && data.bmi !== undefined) ? data.bmi : "";
             genderSelect.value = data.gender;
             smokingSelect.value = data.smoking;
             hypertensionSelect.value = String(data.hypertension);
@@ -475,8 +475,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const btnText = btnStartAnalysis.querySelector(".btn-text");
         btnText.textContent = "Analyzing...";
 
-        // 2. Prepare FormData
+        // 2. Prepare FormData (omit blank optional BMI so FastAPI treats it as None/NaN)
         const formData = new FormData(assessmentForm);
+        if (String(formData.get("bmi") ?? "").trim() === "") {
+            formData.delete("bmi");
+        }
         if (uploadedFile) {
             formData.set("image", uploadedFile);
         } else if (currentSampleName) {
@@ -564,11 +567,12 @@ document.addEventListener("DOMContentLoaded", () => {
         agent1Bar.className = `progress-bar-fill ${pImg >= 50 ? "red" : "teal"}`;
         agent1StatusLabel.textContent = agents.image.statut;
 
-        // Agent 2 RF
+        // Agent 2 RF (synchronisé sur seuil_utilise OOF du modèle, par défaut 65%)
         const pClin = agents.clinique.risque_avc;
+        const rfThreshPct = Math.round((agents.clinique.seuil_utilise ?? 0.65) * 100);
         agent2ScoreText.textContent = `${pClin}%`;
         agent2Bar.style.width = `${pClin}%`;
-        agent2Bar.className = `progress-bar-fill ${pClin >= 50 ? "red" : (pClin >= 25 ? "amber" : "teal")}`;
+        agent2Bar.className = `progress-bar-fill ${pClin >= rfThreshPct ? "red" : (pClin >= 40 ? "amber" : "teal")}`;
         agent2StatusLabel.textContent = agents.clinique.statut;
 
         // Agent 3 Consensus

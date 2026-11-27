@@ -6,6 +6,7 @@ Exécution :
 """
 
 import json
+import os
 import unittest
 from pathlib import Path
 import numpy as np
@@ -23,7 +24,7 @@ if str(ROOT) not in sys.path:
 # Import des modules testés
 import server
 import demo
-from backend.services.triage_service import process_decision_agent
+from backend.services.triage_service import align_clinical_risk, get_clinical_status, process_decision_agent
 
 
 class TestAgentDecision(unittest.TestCase):
@@ -246,6 +247,150 @@ class TestFastAPIRestAPI(unittest.TestCase):
         }
         res = self.client.post("/api/triage", data=payload)
         self.assertEqual(res.status_code, 422)
+
+    def test_agent2_voie1_metrics_and_three_tiers(self):
+        """Vérifie le modèle Voie 1, son seuil OOF gelé et la cohérence des 3 paliers."""
+        with open(ROOT / "agent_clinique" / "metrics.json", encoding="utf-8") as f:
+            met = json.load(f)
+        self.assertGreaterEqual(met["roc_auc"], 0.85)
+        self.assertIn("threshold", met)
+        thresh = float(met["threshold"])
+        self.assertAlmostEqual(thresh, 0.65, places=2)
+        self.assertEqual(get_clinical_status(0.15, thresh), "Risque clinique faible")
+        self.assertEqual(get_clinical_status(0.464, thresh), "Risque clinique modéré (à surveiller)")
+        self.assertEqual(get_clinical_status(0.649, thresh), "Risque clinique modéré (à surveiller)")
+        self.assertEqual(get_clinical_status(0.65, thresh), "Risque neuro-vasculaire élevé")
+
+    def test_agent2_stateless_row_invariance_and_missing_bmi(self):
+        """Vérifie que l'imputation et MissingIndicator gèrent NaN sans fuite ni variance de lot."""
+        import pandas as pd
+        rf = joblib.load(ROOT / "agent_clinique" / "model_rf.joblib")
+        row_ok = pd.DataFrame([{
+            "age": 65.0, "avg_glucose_level": 140.0, "bmi": 28.0,
+            "hypertension": 1, "heart_disease": 0, "gender": "Male",
+            "ever_married": "Yes", "work_type": "Private",
+            "Residence_type": "Urban", "smoking_status": "formerly smoked",
+        }])
+        row_nan = row_ok.copy()
+        row_nan["bmi"] = float("nan")
+        batch = pd.concat([row_ok, row_nan], ignore_index=True)
+        p_batch = rf.predict_proba(batch)[:, 1]
+        p_single_ok = rf.predict_proba(row_ok)[0, 1]
+        p_single_nan = rf.predict_proba(row_nan)[0, 1]
+        self.assertAlmostEqual(float(p_batch[0]), float(p_single_ok), places=6)
+        self.assertAlmostEqual(float(p_batch[1]), float(p_single_nan), places=6)
+        # Missing BMI raises predicted stroke risk due to learned bmi_missing indicator
+        self.assertNotAlmostEqual(float(p_single_ok), float(p_single_nan), places=3)
+
+    def test_all_presets_end_to_end_voie1(self):
+        """Vérifie les 4 presets complets avec les 3 agents et le seuil Voie 1 synchronisé."""
+        expected = {
+            "cas_pneumonie": ("URGENT", "Risque clinique modéré (à surveiller)"),
+            "cas_avc": ("URGENT", "Risque neuro-vasculaire élevé"),
+            "cas_critique_mixte": ("URGENT", "Risque neuro-vasculaire élevé"),
+            "cas_routine": ("NON URGENT", "Risque clinique faible"),
+        }
+        for key, (exp_triage, exp_clin_statut) in expected.items():
+            p = server.PRESETS[key]
+            payload = {
+                "age": p["age"], "gender": p["gender"], "hypertension": p["hypertension"],
+                "heart_disease": p["heart_disease"], "ever_married": p["ever_married"],
+                "work_type": p["work_type"], "residence": p["residence"], "glucose": p["glucose"],
+                "bmi": p["bmi"], "smoking": p["smoking"],
+                "sample_image_name": Path(p["sample_image"]).name,
+            }
+            res = self.client.post("/api/triage", data=payload)
+            self.assertEqual(res.status_code, 200, msg=f"Echec preset {key}: {res.text}")
+            data = res.json()
+            self.assertEqual(data["triage"]["niveau"], exp_triage, msg=key)
+            self.assertEqual(data["agents"]["clinique"]["statut"], exp_clin_statut, msg=key)
+            self.assertAlmostEqual(data["agents"]["clinique"]["seuil_utilise"], 0.65, places=2)
+
+
+class TestAgent3ThresholdAlignmentAndExperiment(unittest.TestCase):
+    """Tests de non-régression pour l'alignement de seuil SAU et les artefacts OOF expérimentaux."""
+
+    def test_align_clinical_risk_monotonicity_and_bounds(self):
+        """Sous 0.65 rien ne change ; à 0.65 exact le score bascule à 0.70 (URGENT)."""
+        self.assertAlmostEqual(align_clinical_risk(0.05, 0.65), 0.05, places=6)
+        self.assertAlmostEqual(align_clinical_risk(0.39, 0.65), 0.39, places=6)
+        self.assertAlmostEqual(align_clinical_risk(0.649, 0.65), 0.649, places=6)
+        self.assertAlmostEqual(align_clinical_risk(0.65, 0.65), 0.70, places=6)
+        self.assertGreater(align_clinical_risk(0.66, 0.65), 0.70)
+        self.assertLess(align_clinical_risk(0.66, 0.65), align_clinical_risk(0.75, 0.65))
+        self.assertAlmostEqual(align_clinical_risk(1.0, 0.65), 1.0, places=6)
+
+    def test_boundary_clinical_065_to_069_no_longer_undertriaged(self):
+        """Un AVC détecté par Agent 2 (>= 0.65) avec radio saine ne doit plus être rétrogradé À SURVEILLER."""
+        lr = joblib.load(ROOT / "agent_decision" / "model_lr.joblib")
+        if not hasattr(lr, "multi_class"):
+            lr.multi_class = "auto"
+        p_final, _, niv, _, _, _, _, _, _ = process_decision_agent(lr, 0.0033, 0.66, clin_threshold=0.65)
+        self.assertGreaterEqual(p_final, 0.70)
+        self.assertEqual(niv, "URGENT")
+
+    def test_cli_and_backend_decision_parity(self):
+        """Vérifie que demo.py et triage_service.py prennent des décisions strictement cohérentes."""
+        lr = joblib.load(ROOT / "agent_decision" / "model_lr.joblib")
+        if not hasattr(lr, "multi_class"):
+            lr.multi_class = "auto"
+        for p_img, p_clin in [(0.0033, 0.0059), (0.0033, 0.66), (0.98, 0.46), (0.98, 0.80)]:
+            p_srv, _, niv_srv, _, _, _, _, _, _ = process_decision_agent(lr, p_img, p_clin, clin_threshold=0.65)
+            p_cli, niv_cli, _, _, _ = demo.agent_decision(p_img, p_clin, clin_threshold=0.65)
+            self.assertAlmostEqual(p_srv, p_cli, places=6)
+            self.assertTrue(niv_cli.startswith(niv_srv), msg=f"{niv_cli} vs {niv_srv}")
+
+    def test_experimental_oof_artifacts_integrity(self):
+        """Vérifie le modèle expérimental isolé OOF, l'absence de fuite et de faux appariements."""
+        import pandas as pd
+        exp_dir = ROOT / "models" / "experiments" / "agent3_retraining"
+        cfg_path = exp_dir / "training_config.json"
+        oof_path = exp_dir / "oof_predictions_agent2_voie1.csv"
+        lr_exp_path = exp_dir / "model_lr_oof.joblib"
+        self.assertTrue(cfg_path.exists(), f"Configuration expérimentale manquante : {cfg_path}")
+        self.assertTrue(oof_path.exists(), f"Prédictions OOF manquantes : {oof_path}")
+        self.assertTrue(lr_exp_path.exists(), f"Modèle expérimental manquant : {lr_exp_path}")
+
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+        audit = cfg["dataset_audit"]
+        self.assertFalse(audit["cross_patient_paired"])
+        self.assertEqual(audit["clinical_train_rows"], 4088)
+        self.assertEqual(audit["clinical_train_positives"], 199)
+        self.assertEqual(audit["clinical_test_rows"], 1022)
+        self.assertEqual(audit["clinical_test_positives"], 50)
+
+        oof_df = pd.read_csv(oof_path)
+        self.assertEqual(len(oof_df), 4088)
+        self.assertEqual(int(oof_df["label"].sum()), 199)
+
+        lr_exp = joblib.load(lr_exp_path)
+        c_img, c_clin = float(lr_exp.coef_[0][0]), float(lr_exp.coef_[0][1])
+        self.assertGreater(c_img, 1.0)
+        self.assertGreater(c_clin, 1.0)
+        self.assertLess(max(c_img, c_clin) / min(c_img, c_clin), 2.5)
+        self.assertLess(float(lr_exp.predict_proba([[0.05, 0.05]])[0, 1]), 0.15)
+        self.assertGreater(float(lr_exp.predict_proba([[0.70, 0.70]])[0, 1]), 0.75)
+
+    def test_experimental_lr_env_override_leaves_prod_intact(self):
+        """Vérifie le chargement optionnel de l'Agent 3 OOF via MEDTRIAGE_LR_PATH sans modifier la prod."""
+        from backend.services import model_service
+        exp_lr = ROOT / "models" / "experiments" / "agent3_retraining" / "model_lr_oof.joblib"
+        prev = os.environ.get("MEDTRIAGE_LR_PATH")
+        try:
+            os.environ["MEDTRIAGE_LR_PATH"] = str(exp_lr)
+            _, _, loaded_lr = model_service.get_models()
+            self.assertAlmostEqual(float(loaded_lr.coef_[0][0]), 2.7488, places=3)
+            synced_met = model_service.load_metrics(force_reload=True)
+            self.assertAlmostEqual(float(synced_met["coefficients"]["image"]), 2.7488, places=3)
+            self.assertIn("2.75", synced_met["decision_formula"])
+        finally:
+            if prev is None:
+                os.environ.pop("MEDTRIAGE_LR_PATH", None)
+            else:
+                os.environ["MEDTRIAGE_LR_PATH"] = prev
+            model_service.MODELS["lr"] = None
+            model_service.MODELS_MTIMES.pop("lr", None)
+            model_service.load_metrics(force_reload=True)
 
 
 if __name__ == "__main__":

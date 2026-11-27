@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import STATIC_DIR
-from backend.routers import metrics_router, presets_router, triage_router
+from backend.routers import evaluation_router, metrics_router, presets_router, triage_router
 from backend.routers.history import router as history_router
 from backend.services.model_service import load_metrics, warmup_models
 
@@ -59,6 +59,7 @@ app.include_router(triage_router)
 app.include_router(presets_router)
 app.include_router(metrics_router)
 app.include_router(history_router)
+app.include_router(evaluation_router)
 
 # Montage des fichiers statiques (UI web)
 if STATIC_DIR.exists():
