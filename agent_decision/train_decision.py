@@ -147,6 +147,32 @@ def main():
     print(f"PR-AUC (Avg Prec) : {ap:.4f}")
     print(f"Score de Brier    : {brier:.4f}")
 
+    # ------------------------------------------------------------------
+    # Évaluation de la règle réellement déployée : max(...) >= 0,70
+    # Le Brier n'est pas recalculé après max : p_final n'est plus une probabilité cohérente.
+    # ------------------------------------------------------------------
+    p_final = np.maximum(proba, np.maximum(X_test[:, 0], X_test[:, 1]))
+    y_pred_max = (p_final >= 0.70).astype(int)
+    cm_max = confusion_matrix(y_test, y_pred_max)
+    rep_max = classification_report(y_test, y_pred_max, target_names=["Non urgent", "Urgent"],
+                                    output_dict=True, zero_division=0)
+    auc_max = float(roc_auc_score(y_test, p_final))
+    ap_max = float(average_precision_score(y_test, p_final))
+
+    tn_max, fp_max, fn_max, tp_max = cm_max.ravel()
+    recall_urgent_max = tp_max / (tp_max + fn_max) if (tp_max + fn_max) else 0.0
+    specificite_max = tn_max / (tn_max + fp_max) if (tn_max + fp_max) else 0.0
+
+    print("\n--- Règle déployée : max(...) >= 0,70 ---")
+    print(classification_report(y_test, y_pred_max, target_names=["Non urgent", "Urgent"], zero_division=0))
+    print(f"Matrice de confusion :\n{cm_max}")
+    print(f"Recall urgent      : {recall_urgent_max:.4f}")
+    print(f"Spécificité        : {specificite_max:.4f}")
+    print(f"Urgents manqués    : {fn_max}")
+    print(f"Fausses alertes    : {fp_max}")
+    print(f"ROC-AUC (p_final)  : {auc_max:.4f}")
+    print(f"PR-AUC  (p_final)  : {ap_max:.4f}")
+
     coef_img = float(model.coef_[0][0])
     coef_clin = float(model.coef_[0][1])
     intercept = float(model.intercept_[0])
@@ -181,6 +207,14 @@ def main():
             "intercept": intercept
         },
         "report": rep,
+        "confusion_matrix_composite_0.5": cm.tolist(),
+        "deployed_rule_max_0.70": {
+            "threshold": 0.70,
+            "confusion_matrix": cm_max.tolist(),
+            "report": rep_max,
+            "roc_auc_pfinal": auc_max,
+            "pr_auc_pfinal": ap_max
+        },
         "methodology": {
             "agent_type": "Hierarchical Triage Supervisor (Late Stacking Orchestration)",
             "training_sampling": "Balanced 4-Quadrant Stratified Sampling",
