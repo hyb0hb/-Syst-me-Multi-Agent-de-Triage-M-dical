@@ -24,6 +24,8 @@ AVERTISSEMENT : Prototype universitaire expérimental — ne constitue pas un av
 """
 
 import argparse
+import json
+import os
 import sys
 from pathlib import Path
 from PIL import Image
@@ -31,6 +33,17 @@ import joblib
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from backend.services.triage_service import align_clinical_risk
+
+
+def _load_clin_threshold() -> float:
+    m_path = ROOT / "agent_clinique" / "metrics.json"
+    if m_path.exists():
+        return float(json.loads(m_path.read_text(encoding="utf-8")).get("threshold", 0.65))
+    return 0.65
 
 
 def agent_image(image_path):
@@ -57,18 +70,22 @@ def agent_clinique(row):
     return float(model.predict_proba(pd.DataFrame([row]))[0, 1])
 
 
-def agent_decision(p_img, p_clin):
+def agent_decision(p_img, p_clin, clin_threshold=None):
     """Agent 3 : superviseur de consensus (Régression Logistique + Principe de Précaution SAU)."""
-    model_path = ROOT / "agent_decision" / "model_lr.joblib"
+    env_lr = os.environ.get("MEDTRIAGE_LR_PATH")
+    model_path = Path(env_lr) if env_lr else (ROOT / "agent_decision" / "model_lr.joblib")
     if not model_path.exists():
         raise FileNotFoundError(f"Modèle Régression Logistique introuvable : {model_path}")
 
     model = joblib.load(model_path)
+    if not hasattr(model, "multi_class"):
+        model.multi_class = "auto"
     p_composite = float(model.predict_proba([[p_img, p_clin]])[0, 1])
 
-    # Règle de consensus clinique (Principe de précaution SAU) :
-    # Si un axe spécialisé présente une détresse aiguë, l'orientation d'urgence prime.
-    p = max(p_composite, p_img, p_clin)
+    # Principe de précaution SAU synchronisé avec le seuil OOF certifié d'Agent 2
+    thresh = _load_clin_threshold() if clin_threshold is None else float(clin_threshold)
+    p_clin_aligned = align_clinical_risk(p_clin, clin_threshold=thresh)
+    p = max(p_composite, p_img, p_clin_aligned)
 
     if p >= 0.70:
         niveau = "URGENT (Priorité SAU < 15 min)"
@@ -268,15 +285,13 @@ def main():
     print(f" Cliché radiologique analysé : {image_path.name}")
     print("-" * 60)
 
+    rf_thresh = _load_clin_threshold()
     p_img = agent_image(image_path)
     p_clin = agent_clinique(clinical)
-    p_final, niveau, c_img, c_clin, intercept = agent_decision(p_img, p_clin)
+    p_final, niveau, c_img, c_clin, intercept = agent_decision(p_img, p_clin, clin_threshold=rf_thresh)
 
     print(f" 1. Agent Vision Médicale (CNN MobileNetV2) :")
     print(f"    -> Probabilité Pneumonie = {p_img:6.1%} [{'SUSPICION OPACITÉS' if p_img >= 0.5 else 'CHAMPS DÉGAGÉS'}]")
-    import json
-    m_path = ROOT / "agent_clinique" / "metrics.json"
-    rf_thresh = float(json.loads(m_path.read_text(encoding="utf-8")).get("threshold", 0.65)) if m_path.exists() else 0.65
     clin_statut = "RISQUE ÉLEVÉ" if p_clin >= rf_thresh else ("RISQUE MODÉRÉ (À SURVEILLER)" if p_clin >= 0.40 else "RISQUE FAIBLE")
     print(f" 2. Agent Clinique (Random Forest) :")
     print(f"    -> Probabilité Risque AVC = {p_clin:6.1%} [{clin_statut}]")

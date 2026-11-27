@@ -1,0 +1,41 @@
+{
+  "git": {
+    "main": "f78b5e626b8e270cd025b91acc3f9eea93b29f1a",
+    "feature_agent2_voie1_optimisee": "451ae2bdd3617d97885edc6efcae2819b2732f49",
+    "head": "451ae2bdd3617d97885edc6efcae2819b2732f49"
+  },
+  "seed": 42,
+  "dataset_audit": {
+    "cross_patient_paired": false,
+    "clinical_train_rows": 4088,
+    "clinical_train_positives": 199,
+    "clinical_test_rows": 1022,
+    "clinical_test_positives": 50,
+    "image_test_split_a_rows": 312,
+    "image_test_split_a_pneumonia": 195,
+    "image_test_split_b_rows": 312,
+    "image_test_split_b_pneumonia": 195,
+    "legacy_agent3_split_a_clinical_positives": 25,
+    "experimental_oof_clinical_positives": 199
+  },
+  "agent3_oof_lr": {
+    "estimator": "LogisticRegression",
+    "hyperparameters": {
+      "class_weight": "balanced",
+      "C": 1.0,
+      "max_iter": 1000,
+      "random_state": 42
+    },
+    "training_samples": 8000,
+    "coefficients": {
+      "image": 2.748809988485486,
+      "clinique": 3.5081655346404492,
+      "intercept": -2.905278548271105
+    },
+    "prod_coefficients": {
+      "image": 3.139732370651969,
+      "clinique": 3.6107642989494453,
+      "intercept": -2.9170170287805024
+    }
+  }
+}

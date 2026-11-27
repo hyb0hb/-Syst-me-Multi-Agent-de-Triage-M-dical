@@ -1,6 +1,7 @@
 """Service de chargement, de mise en cache et de réchauffage dynamique des modèles d'IA."""
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, Tuple
 import joblib
@@ -174,10 +175,11 @@ def get_models() -> Tuple[object, object, object]:
             MODELS["rf"] = joblib.load(rf_path)
             MODELS_MTIMES["rf"] = mtime
 
-    # 3. Modèle Régression Logistique (Agent 3 Consensus)
-    lr_path = MODEL_PATHS["lr"]
+    # 3. Modèle Régression Logistique (Agent 3 Consensus — surcharge optionnelle via MEDTRIAGE_LR_PATH)
+    env_lr = os.environ.get("MEDTRIAGE_LR_PATH")
+    lr_path = Path(env_lr) if env_lr else MODEL_PATHS["lr"]
     if lr_path.exists():
-        mtime = lr_path.stat().st_mtime
+        mtime = (str(lr_path), lr_path.stat().st_mtime)
         if MODELS["lr"] is None or MODELS_MTIMES.get("lr") != mtime:
             loaded_lr = joblib.load(lr_path)
             if not hasattr(loaded_lr, "multi_class"):
