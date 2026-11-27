@@ -81,6 +81,16 @@
                     </svg>
                     <span>About</span>
                 </a>
+
+                <div class="nav-section-divider">Research Suite</div>
+
+                <a href="#evaluation" class="nav-item nav-eval-item" id="navEvaluation">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>
+                    <span>Evaluation</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -112,6 +122,10 @@
                 </div>
 
                 <div class="header-right">
+                    <div class="mode-switch-pill" role="tablist" aria-label="Workspace mode">
+                        <button type="button" class="mode-tab-btn active" id="btnModeDemo">Demo Triage</button>
+                        <button type="button" class="mode-tab-btn" id="btnModeEval">Research Evaluation</button>
+                    </div>
                     <div class="status-indicator-pill" id="apiStatusBadge">
                         <span class="status-dot green" id="apiStatusDot"></span>
                         <span class="status-text" id="apiStatusText">FastAPI · Connected</span>
@@ -765,6 +779,178 @@
             </div>
 
             <!-- ========================================================
+                 5B. SEPARATE HELD-OUT EVALUATION WORKSPACE
+            ======================================================== -->
+            <div class="content-body evaluation-workspace" id="evaluationWorkspace" style="display: none;">
+                <section class="eval-safety-banner">
+                    <div class="eval-safety-badge">ACADEMIC PROTOTYPE ONLY</div>
+                    <p>
+                        <strong>Research Evaluation Workspace (Separate from Clinical Demo):</strong>
+                        Not a clinically validated medical device. Probabilities and triage categories are experimental research outputs and do not diagnose or rule out any disease. Chest X-Ray and Stroke datasets represent unpaired cohorts (<code>cross_patient_paired: false</code>).
+                    </p>
+                </section>
+
+                <!-- Authorization Gate Card -->
+                <section class="card eval-auth-card" id="evalAuthCard">
+                    <div class="card-title-row">
+                        <div class="card-icon-title">
+                            <div class="card-icon-round navy">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="card-title">Authorized Evaluator Access</h3>
+                                <p class="card-subtitle">Enter an evaluator token (<code>X-Eval-Token</code>) to access held-out benchmark runs and ground-truth comparison.</p>
+                            </div>
+                        </div>
+                        <span class="eval-auth-status-pill" id="evalAuthStatusPill">Locked</span>
+                    </div>
+                    <form id="evalAuthForm" class="eval-auth-form">
+                        <input type="password" id="evalTokenInput" class="eval-input"
+                            placeholder="Evaluator token (local default: research-eval-2026)" required>
+                        <button type="submit" class="eval-btn-primary" id="btnUnlockEval">Authorize Session</button>
+                        <button type="button" class="eval-btn-secondary" id="btnUseDefaultToken"
+                            title="Fill local development research token">Fill Local Lab Token</button>
+                    </form>
+                    <p class="eval-auth-error" id="evalAuthError" style="display: none;"></p>
+                </section>
+
+                <!-- Evaluation Controls & Results (Hidden until authorized) -->
+                <div id="evalAuthorizedArea" style="display: none;">
+                    <section class="card eval-controls-card">
+                        <div class="card-title-row">
+                            <div class="card-icon-title">
+                                <h3 class="card-title">Reproducible Evaluation Configuration</h3>
+                            </div>
+                            <button type="button" class="eval-btn-ghost" id="btnLockEval">Lock Session</button>
+                        </div>
+
+                        <div class="eval-controls-grid">
+                            <div class="eval-field">
+                                <label for="evalDatasetSelect">Held-Out Evaluation Dataset</label>
+                                <select id="evalDatasetSelect" class="eval-input">
+                                    <option value="clinical_test">Clinical Stroke Held-Out Test (N=1,022 · 50 strokes)</option>
+                                    <option value="radiology_test">Radiology Chest X-Ray Held-Out Test (N=624 · 390 pneumonia)</option>
+                                    <option value="radiology_test_b">Radiology Held-Out Split B — Unseen by Agent 3 (N=312)</option>
+                                    <option value="simulated_quadrant">SIMULATED Cross-Dataset Quadrants (img_b × X_test — Not Real Patients)</option>
+                                </select>
+                            </div>
+
+                            <div class="eval-field">
+                                <label>Systems to Compare (Identical Sample IDs)</label>
+                                <div class="eval-checkbox-group">
+                                    <label class="eval-check"><input type="checkbox" value="system_a" class="eval-sys-check" checked> System A (MAIN Baseline)</label>
+                                    <label class="eval-check"><input type="checkbox" value="system_b" class="eval-sys-check" checked> System B (Voie 1 + Existing LR)</label>
+                                    <label class="eval-check"><input type="checkbox" value="system_c" class="eval-sys-check" checked> System C (Voie 1 + OOF LR + 0.65 Align)</label>
+                                </div>
+                            </div>
+
+                            <div class="eval-field">
+                                <label for="evalSamplingMode">Sampling Mode</label>
+                                <select id="evalSamplingMode" class="eval-input">
+                                    <option value="full">Full Held-Out Split</option>
+                                    <option value="seeded">Seeded Random Subset (Same IDs across systems)</option>
+                                </select>
+                            </div>
+
+                            <div class="eval-field eval-seed-row">
+                                <div>
+                                    <label for="evalSampleSize">Sample Size</label>
+                                    <input type="number" id="evalSampleSize" class="eval-input" value="250" min="20" max="4000" disabled>
+                                </div>
+                                <div>
+                                    <label for="evalSeed">Random Seed</label>
+                                    <input type="number" id="evalSeed" class="eval-input" value="42" min="0" max="2147483647">
+                                </div>
+                                <div>
+                                    <label for="evalBootstrap">Bootstrap CIs</label>
+                                    <input type="number" id="evalBootstrap" class="eval-input" value="400" min="100" max="2000">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="eval-actions-bar">
+                            <button type="button" class="eval-btn-primary" id="btnRunEvaluation">Run Held-Out Evaluation</button>
+                            <button type="button" class="eval-btn-secondary" id="btnExportMd" disabled>Export Markdown Report</button>
+                            <button type="button" class="eval-btn-secondary" id="btnExportJson" disabled>Export JSON Report</button>
+                            <span class="eval-running-status" id="evalRunningStatus"></span>
+                        </div>
+                    </section>
+
+                    <div id="evalResultsContainer" style="display: none;">
+                        <!-- Provenance Banner -->
+                        <section class="card eval-provenance-card" id="evalProvenanceCard"></section>
+
+                        <!-- Verdict Callout -->
+                        <section class="eval-verdict-banner" id="evalVerdictBanner"></section>
+
+                        <!-- Main Comparison Table -->
+                        <section class="card">
+                            <div class="card-title-row">
+                                <h3 class="card-title">System Comparison &amp; 95% Stratified Bootstrap Confidence Intervals</h3>
+                            </div>
+                            <div class="eval-table-wrap">
+                                <table class="eval-table" id="evalComparisonTable"></table>
+                            </div>
+                        </section>
+
+                        <!-- Pairwise Significance -->
+                        <section class="card">
+                            <div class="card-title-row">
+                                <h3 class="card-title">Paired Statistical Significance (McNemar &amp; Paired Bootstrap Deltas)</h3>
+                            </div>
+                            <div id="evalPairwiseContainer" class="eval-pairwise-grid"></div>
+                        </section>
+
+                        <!-- Confusion Matrices & Calibration -->
+                        <section class="card">
+                            <div class="card-title-row">
+                                <h3 class="card-title">Confusion Matrices &amp; 10-Bin Calibration Summary</h3>
+                            </div>
+                            <div id="evalMatricesGrid" class="eval-matrices-grid"></div>
+                        </section>
+
+                        <!-- Subgroups -->
+                        <section class="card" id="evalSubgroupsCard" style="display: none;">
+                            <div class="card-title-row">
+                                <h3 class="card-title">Subgroup Reliability Check (Minimum Support Guard: n >= 50 &amp; pos >= 5)</h3>
+                            </div>
+                            <div class="eval-table-wrap">
+                                <table class="eval-table" id="evalSubgroupsTable"></table>
+                            </div>
+                        </section>
+
+                        <!-- False Negatives / False Positives Inspector -->
+                        <section class="card">
+                            <div class="card-title-row">
+                                <h3 class="card-title">False Negatives &amp; False Positives Review</h3>
+                                <div class="eval-error-controls">
+                                    <select id="evalErrorSystemSelect" class="eval-input eval-input-sm"></select>
+                                    <div class="perf-tabs-bar" style="margin-bottom: 0;">
+                                        <button type="button" class="perf-tab-btn active" id="tabFnBtn">False Negatives</button>
+                                        <button type="button" class="perf-tab-btn" id="tabFpBtn">False Positives</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="eval-table-wrap eval-scroll-box">
+                                <table class="eval-table" id="evalErrorsTable"></table>
+                            </div>
+                        </section>
+
+                        <!-- Limitations -->
+                        <section class="card">
+                            <div class="card-title-row">
+                                <h3 class="card-title">Methodological Limitations &amp; Unresolved Issues</h3>
+                            </div>
+                            <ul id="evalLimitationsList" class="eval-limitations-list"></ul>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================
                  6. PERSISTENT FOOTER
             ======================================================== -->
             <footer class="dashboard-footer" id="about">
@@ -780,6 +966,7 @@
 
     <!-- Application JavaScript -->
     <script src="/static/app.js"></script>
+    <script src="/static/eval.js"></script>
 </body>
 
 </html>

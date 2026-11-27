@@ -143,14 +143,17 @@ def run_random_mode(n_cases=1, quadrant="any", seed=None):
         print("Téléchargez les données conformément à data/README.md pour le mode --random.", file=sys.stderr)
         sys.exit(1)
 
-    df_stroke = pd.read_csv(stroke_csv)
-    df_stroke["bmi"] = pd.to_numeric(df_stroke["bmi"], errors="coerce")
-    normal_imgs = list((xray_test_dir / "NORMAL").glob("*.jpeg")) + list((xray_test_dir / "NORMAL").glob("*.jpg"))
-    pneu_imgs = list((xray_test_dir / "PNEUMONIA").glob("*.jpeg")) + list((xray_test_dir / "PNEUMONIA").glob("*.jpg"))
+    from sklearn.model_selection import train_test_split
+    df_all = pd.read_csv(stroke_csv)
+    df_all["bmi"] = pd.to_numeric(df_all["bmi"], errors="coerce")
+    _, df_stroke = train_test_split(df_all, test_size=0.2, stratify=df_all["stroke"].astype(int), random_state=42)
+    df_stroke = df_stroke.reset_index(drop=True)
+    normal_imgs = sorted(list((xray_test_dir / "NORMAL").glob("*.jpeg")) + list((xray_test_dir / "NORMAL").glob("*.jpg")))
+    pneu_imgs = sorted(list((xray_test_dir / "PNEUMONIA").glob("*.jpeg")) + list((xray_test_dir / "PNEUMONIA").glob("*.jpg")))
 
     rng = random.Random(seed)
     print("=" * 65)
-    print(f" DÉMONSTRATION ALÉATOIRE SUR LE DATASET RÉEL ({n_cases} cas)")
+    print(f" DÉMONSTRATION ALÉATOIRE SUR LE JEU DE TEST UNIQUEMENT ({n_cases} cas, seed={seed})")
     print("=" * 65)
 
     for i in range(1, n_cases + 1):
@@ -180,7 +183,7 @@ def run_random_mode(n_cases=1, quadrant="any", seed=None):
         clinical = {
             "age": float(pt["age"]),
             "avg_glucose_level": float(pt["avg_glucose_level"]),
-            "bmi": float(pt["bmi"]) if not pd.isna(pt["bmi"]) else 24.5,
+            "bmi": float(pt["bmi"]) if not pd.isna(pt["bmi"]) else float("nan"),
             "hypertension": int(pt["hypertension"]),
             "heart_disease": int(pt["heart_disease"]),
             "gender": str(pt["gender"]),
@@ -217,7 +220,9 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     ap.add_argument("--random", type=int, nargs="?", const=1, default=None,
-                    help="Tester un ou plusieurs cas tirés aléatoirement dans le dataset data/ (défaut: 1)")
+                    help="Tester un ou plusieurs cas tirés aléatoirement dans le jeu de test (défaut: 1)")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="Graine aléatoire fixe optionnelle pour le mode --random")
     ap.add_argument("--quadrant", default="any", choices=["any", "Q00", "Q10", "Q01", "Q11"],
                     help="Filtrer le tirage aléatoire sur un quadrant pivot (Q00, Q10, Q01, Q11)")
     ap.add_argument("--image", default=None, help="Chemin du cliché radiographique (JPEG/PNG)")
@@ -237,9 +242,9 @@ def main():
                     choices=["formerly smoked", "never smoked", "smokes", "Unknown"])
     args = ap.parse_args()
 
-    # Mode tirage aléatoire direct depuis le dataset
+    # Mode tirage aléatoire direct depuis le jeu de test
     if args.random is not None:
-        run_random_mode(n_cases=args.random, quadrant=args.quadrant)
+        run_random_mode(n_cases=args.random, quadrant=args.quadrant, seed=args.seed)
         sys.exit(0)
 
     # Mode manuel : vérification de la présence des champs obligatoires

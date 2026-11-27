@@ -343,9 +343,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!res.ok) throw new Error("Erreur de chargement du cas aléatoire.");
             const data = await res.json();
 
-            // Populate clinical inputs
+            // Populate clinical inputs (preserve missing BMI as blank instead of silent imputation)
             ageInput.value = data.age;
-            bmiInput.value = data.bmi || 24.5;
+            bmiInput.value = (data.bmi !== null && data.bmi !== undefined) ? data.bmi : "";
             genderSelect.value = data.gender;
             smokingSelect.value = data.smoking;
             hypertensionSelect.value = String(data.hypertension);
@@ -475,8 +475,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const btnText = btnStartAnalysis.querySelector(".btn-text");
         btnText.textContent = "Analyzing...";
 
-        // 2. Prepare FormData
+        // 2. Prepare FormData (omit blank optional BMI so FastAPI treats it as None/NaN)
         const formData = new FormData(assessmentForm);
+        if (String(formData.get("bmi") ?? "").trim() === "") {
+            formData.delete("bmi");
+        }
         if (uploadedFile) {
             formData.set("image", uploadedFile);
         } else if (currentSampleName) {

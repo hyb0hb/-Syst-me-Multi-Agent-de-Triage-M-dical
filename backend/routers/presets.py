@@ -7,28 +7,39 @@ from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 from backend.config import PRESETS, STROKE_CSV, CHEST_XRAY_DIR
 
 router = APIRouter(prefix="/api", tags=["Presets & Dataset Cas Aléatoires"])
 
-# Cache en mémoire pour réponses instantanées (< 5ms)
-_stroke_df: Optional[pd.DataFrame] = None
+# Cache en mémoire pour réponses instantanées (< 5ms) — strictement limité au jeu de test !
+_stroke_test_df: Optional[pd.DataFrame] = None
 _normal_imgs = None
 _pneu_imgs = None
 
 
 def _get_dataset_resources():
-    global _stroke_df, _normal_imgs, _pneu_imgs
-    if _stroke_df is None and STROKE_CSV.exists():
-        _stroke_df = pd.read_csv(STROKE_CSV)
-        _stroke_df["bmi"] = pd.to_numeric(_stroke_df["bmi"], errors="coerce")
+    global _stroke_test_df, _normal_imgs, _pneu_imgs
+    if _stroke_test_df is None and STROKE_CSV.exists():
+        df = pd.read_csv(STROKE_CSV)
+        df["bmi"] = pd.to_numeric(df["bmi"], errors="coerce")
+        _, _stroke_test_df = train_test_split(
+            df, test_size=0.2, stratify=df["stroke"].astype(int), random_state=42
+        )
+        _stroke_test_df = _stroke_test_df.reset_index(drop=True)
 
     if _normal_imgs is None and (CHEST_XRAY_DIR / "test" / "NORMAL").exists():
-        _normal_imgs = list((CHEST_XRAY_DIR / "test" / "NORMAL").glob("*.jpeg")) + list((CHEST_XRAY_DIR / "test" / "NORMAL").glob("*.jpg"))
-        _pneu_imgs = list((CHEST_XRAY_DIR / "test" / "PNEUMONIA").glob("*.jpeg")) + list((CHEST_XRAY_DIR / "test" / "PNEUMONIA").glob("*.jpg"))
+        _normal_imgs = sorted(
+            list((CHEST_XRAY_DIR / "test" / "NORMAL").glob("*.jpeg")) + list((CHEST_XRAY_DIR / "test" / "NORMAL").glob("*.jpg")),
+            key=lambda p: p.name,
+        )
+        _pneu_imgs = sorted(
+            list((CHEST_XRAY_DIR / "test" / "PNEUMONIA").glob("*.jpeg")) + list((CHEST_XRAY_DIR / "test" / "PNEUMONIA").glob("*.jpg")),
+            key=lambda p: p.name,
+        )
 
-    return _stroke_df, _normal_imgs, _pneu_imgs
+    return _stroke_test_df, _normal_imgs, _pneu_imgs
 
 
 @router.get(
@@ -42,10 +53,13 @@ def get_presets():
 
 @router.get(
     "/random-case",
-    summary="Tirage d'un patient et d'une radiographie aléatoires du dataset réel",
-    description="Sélectionne un profil patient réel dans le Stroke Dataset et une radio réelle dans Chest X-Ray.",
+    summary="Tirage d'un patient et d'une radiographie aléatoires du jeu de TEST uniquement",
+    description="Sélectionne un profil patient dans le split test clinique (N=1022) et une radio dans chest_xray/test (graine fixe optionnelle).",
 )
-def get_random_case(quadrant: str = Query("any", description="Cibler un quadrant: any, Q00, Q10, Q01, Q11")):
+def get_random_case(
+    quadrant: str = Query("any", description="Cibler un quadrant: any, Q00, Q10, Q01, Q11"),
+    seed: Optional[int] = Query(None, ge=0, le=2_147_483_647, description="Graine aléatoire fixe optionnelle pour reproductibilité"),
+):
     df, normals, pneus = _get_dataset_resources()
     if df is None or not normals or not pneus:
         raise HTTPException(
@@ -53,7 +67,9 @@ def get_random_case(quadrant: str = Query("any", description="Cibler un quadrant
             detail="Les fichiers du dataset local (data/) ne sont pas disponibles sur le serveur."
         )
 
-    # Filtrage selon le quadrant pivot désiré
+    rng = random.Random(seed)
+
+    # Filtrage selon le quadrant pivot désiré (strictement dans held-out test!)
     if quadrant in ("Q01", "Q11"):
         sub_df = df[df["stroke"] == 1]
     elif quadrant in ("Q00", "Q10"):
@@ -61,29 +77,34 @@ def get_random_case(quadrant: str = Query("any", description="Cibler un quadrant
     else:
         sub_df = df
 
-    row = sub_df.sample(1).iloc[0]
+    chosen_idx = rng.randrange(len(sub_df))
+    row = sub_df.iloc[chosen_idx]
 
     # Sélection de la radiographie
     if quadrant in ("Q10", "Q11"):
-        img = random.choice(pneus)
+        img = rng.choice(pneus)
         img_label = "PNEUMONIA"
     elif quadrant in ("Q00", "Q01"):
-        img = random.choice(normals)
+        img = rng.choice(normals)
         img_label = "NORMAL"
     else:
-        if random.random() < 0.5:
-            img = random.choice(normals)
+        if rng.random() < 0.5:
+            img = rng.choice(normals)
             img_label = "NORMAL"
         else:
-            img = random.choice(pneus)
+            img = rng.choice(pneus)
             img_label = "PNEUMONIA"
 
     rel_path = f"test/{img_label}/{img.name}"
     stroke_val = int(row["stroke"])
-    bmi_val = round(float(row["bmi"]), 1) if not pd.isna(row["bmi"]) else 24.5
+    # Préserver les valeurs manquantes d'IMC sans imputation silencieuse (cohérent avec MissingIndicator)
+    bmi_val = round(float(row["bmi"]), 1) if not pd.isna(row["bmi"]) else None
 
     return {
-        "source": "Kaggle Datasets (data/)",
+        "source": "Kaggle Held-Out Test Splits Only (X_test=1022, chest_xray/test=624)",
+        "held_out_split": True,
+        "cross_patient_paired": False,
+        "seed_used": seed,
         "patient_id": int(row["id"]),
         "age": float(row["age"]),
         "gender": str(row["gender"]) if str(row["gender"]) in ("Male", "Female", "Other") else "Male",
@@ -101,7 +122,7 @@ def get_random_case(quadrant: str = Query("any", description="Cibler un quadrant
         "image_class": img_label,
         "sample_token": f"dataset:{rel_path}",
         "image_url": f"/api/dataset-image?path={rel_path}",
-        "ground_truth_summary": f"Patient #{int(row['id'])} ({'AVC Avéré' if stroke_val==1 else 'Pas d AVC'}) · Radio {img_label} ({img.name})",
+        "ground_truth_summary": f"Test Patient #{int(row['id'])} ({'AVC' if stroke_val==1 else 'Non-AVC'}) · Radio {img_label} ({img.name}) [Unpaired]",
     }
 
 
