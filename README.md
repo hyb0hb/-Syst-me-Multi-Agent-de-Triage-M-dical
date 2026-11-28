@@ -30,32 +30,43 @@ Trois agents spécialisés collaborent pour produire une orientation de triage h
 - **Performances test** : **ROC-AUC = 0.965** | **Rappel Pneumonie = 98.5%** (384 cas détectés sur 390, seulement 6 faux négatifs).
 
 ### Agent 2 — Risque Neuro-Vasculaire (Random Forest — Voie 1)
-- **Architecture** : **Random Forest** régularisé avec pipeline sans fuite (`MissingIndicator` sur l'IMC + `SimpleImputer` + `StandardScaler` + interactions ciblées `âge × comorbidités`).
+- **Architecture** : **Random Forest** régularisé avec pipeline sans fuite (`MissingIndicator` sur l'IMC + `SimpleImputer` (médiane) + interactions `âge × hypertension` et `âge × cardiopathie` + `OneHotEncoder`).
 - **Tâche** : Détection précoce du risque d'Accident Vasculaire Cérébral (AVC) à partir des constantes tabulaires.
 - **Dataset** : *Stroke Prediction Dataset* — Kaggle (5 110 patients, découpage 80/20 canonique stratifié).
-- **Calibration OOF** : Seuil décisionnel gelé à **0.65** par validation croisée 5-fold Out-Of-Fold.
-- **Performances test (1 022 patients)** : **ROC-AUC = 0.851** | **Rappel AVC = 62.0%** (contre 40.0% sur le modèle initial) | **Spécificité = 89.9%**.
+- **Seuil décisionnel** : **0.65**, choisi par validation croisée 5-fold OOF (maximise le F1 sur le train) et gelé avant le test. Les probabilités ne sont pas calibrées.
+- **Performances test (1 022 patients)** : **ROC-AUC = 0.851** | **Rappel AVC = 62.0%** (31/50) | **Précision = 24.0%** | **Spécificité = 89.9%** (98 faux positifs). Au seuil 0.70, le rappel était de 36 à 40% (mesure conservée dans l'historique Git, commit 5a92a42) : le gain vient du changement de seuil, pas du modèle.
 
 ### Agent 3 — Consensus Décisionnel & Triage (Régression Logistique OOF)
-- **Architecture** : **Régression Logistique L2** (`class_weight='balanced'`) entraînée par late-stacking 5-fold OOF sur un banc équilibré de 4 quadrants cliniques (4 000 cas).
+- **Architecture** : **Régression Logistique L2** (`class_weight='balanced'`) entraînée par late-stacking 5-fold OOF sur des paires synthétiques équilibrées de 4 quadrants (2 000 par quadrant, valeur par défaut de `train_decision.py`).
 - **Poids réels appris** :
   $$z = (2.75 \times P_{\text{img}}) + (3.51 \times P_{\text{clin}}) - 2.91$$
 - **Principe de Précaution SAU (Emergency Safety Net)** :
   $$P_{\text{triage}} = \max\left(P_{\text{composite}}, P_{\text{img}}, \text{align}(P_{\text{clin}})\right)$$
-  Dès que l'Agent 2 détecte un risque d'AVC ($P_{\text{clin}} \ge 0.65$), le score est réaligné à $\ge 0.70$ (**URGENT**). Aucun sous-triage possible d'un AVC isolé à radio saine.
-- **Performances système complet** : **ROC-AUC = 0.877** | **PR-AUC = 0.955** | **Rappel Cas Urgents = 91.5%** | **Exactitude = 84.6%**.
+  Dès que l'Agent 2 détecte un risque d'AVC ($P_{\text{clin}} \ge 0.65$), le score est réaligné à $\ge 0.70$ (**URGENT**). Un AVC dont le score clinique reste sous 0.65 n'est pas classé URGENT : c'est le cas de 19 des 50 AVC du jeu de test (8 en NON URGENT, 11 en À SURVEILLER).
+- **Performances (benchmark synthétique)** : **ROC-AUC = 0.877** | **PR-AUC = 0.955** | **Rappel Cas Urgents = 91.5%** | **Exactitude = 84.6%**, mesurés sur 4 000 paires synthétiques (1 000 par quadrant, 75% de cas urgents par construction), non transposables à une population réelle.
 
 ---
 
-## 📊 Tableau Synthétique des Performances Certifiées
+## 📊 Tableau Synthétique des Performances Mesurées
 
 | Agent | Modèle | Jeu d'évaluation | ROC-AUC | Rappel Critique | Précision | Exactitude |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | **Agent 1** (Imagerie) | MobileNetV2 (CNN) | Test Kaggle (N=624) | **0.965** | **98.5%** *(Pneumonie)* | 82.4% | 85.9% |
-| **Agent 2** (Clinique) | Random Forest Voie 1 | Test Kaggle (N=1 022) | **0.851** | **62.0%** *(AVC)* | 24.0% | 88.6% |
-| **Agent 3** (Consensus) | Régression Logistique + SAU | Quadrants test (N=4 000) | **0.877** | **91.5%** *(Urgences)* | 88.4% | 84.6% |
+| **Agent 2** (Clinique) | Random Forest Voie 1 | 20% du dataset (N=1 022) | **0.851** | **62.0%** *(AVC)* | 24.0% | 88.6% |
+| **Agent 3** (Consensus) | Régression Logistique + SAU | 4 000 paires synthétiques (75% de positifs) | **0.877** | **91.5%** *(Urgences)* | 88.4% | 84.6% |
 
-> **Principe médical fondamental :** Le **rappel** est la priorité absolue aux urgences. Un faux négatif (pathologie grave non diagnostiquée) engage le pronostic vital, alors qu'un faux positif entraîne simplement des examens complémentaires de réassurance.
+Les trois lignes ne sont pas comparables : jeux d'évaluation et prévalences différents.
+
+> **Principe médical fondamental :** Le **rappel** est la priorité absolue aux urgences. Un faux négatif (pathologie grave non diagnostiquée) engage le pronostic vital, alors qu'un faux positif n'est pas anodin (surcharge et délais aux urgences) : voir Limites connues.
+
+---
+
+## ⚠️ Limites connues
+- **Cohortes non appariées** : les radios (enfants, Kaggle) et les dossiers AVC (adultes) concernent des patients différents. Le consensus de l'Agent 3 est évalué sur des paires synthétiques (75% de cas urgents par construction) : ces chiffres ne sont pas transposables à une population réelle.
+- **Agent 1** : rappel NORMAL de 65% au seuil 0.5 (82 radios normales sur 234 classées pneumonie), précision pneumonie 82.4%. Sa validation est découpée par image et non par patient : une simulation donne environ 40% d'images de validation partageant un identifiant patient (déduit des noms de fichiers) avec l'entraînement, donc des métriques de validation optimistes ; le dossier test/ n'a aucun identifiant commun avec train/.
+- **Agent 2** : rappel 62.0% (31/50) mais précision 24.0% (prévalence de 4.9%) ; 19 AVC sur 50 ne sont pas classés URGENT. Les probabilités affichées ne sont pas calibrées : « 54% » ne correspond pas à 54% de risque réel.
+- **Faux positifs** : un faux positif aux urgences a un coût (surcharge, délais). Le seuil URGENT du système favorise le rappel au détriment de la précision.
+- **Entrées** : sans image fournie, le système utilise une radio normale par défaut ; une image hors sujet reçoit tout de même un score.
 
 ---
 
@@ -133,14 +144,14 @@ python server.py
 # Ou sur un port personnalisé (ex: 8001)
 python server.py --port 8001
 ```
-Accédez au tableau de bord dans votre navigateur : **[http://127.0.0.1:8001](http://127.0.0.1:8001)** (ou `http://127.0.0.1:8000`).
+Accédez au tableau de bord : **http://127.0.0.1:8000** (ou 8001 avec `--port 8001`).
 
 - **Presets cliniques** : testez en 1 clic les 4 cas types (détresse respiratoire, AVC aigu, choc mixte, routine).
 - **Mode aléatoire** : pioche un patient réel depuis le dataset de test.
 - **Formulaire complet** : téléversez n'importe quelle radiographie thoracique (JPEG/PNG) et ajustez les constantes physiologiques.
 
 ### 2. Démonstrateur en Ligne de Commande (CLI)
-Le script [demo.py](file:///c:/Users/dell/-Syst-me-Multi-Agent-de-Triage-M-dical/demo.py) s'exécute directement sans serveur web :
+Le script [demo.py](demo.py) s'exécute directement sans serveur web :
 ```bash
 # Cas 1 : Détresse respiratoire aiguë (pneumonie)
 python demo.py --sample pneumonia --age 54 --gender Male --glucose 98.4 --bmi 26.2
@@ -156,7 +167,7 @@ python demo.py --random 3
 ```bash
 python -m unittest discover -s tests -v
 ```
-Vérifie 23 points critiques : intégrité des 3 modèles, absence de fuite statistique, rejet des valeurs aberrantes (âges négatifs, IMC irréalistes), parité stricte Backend/CLI et endpoints FastAPI.
+Vérifie 23 points critiques : chargement et cohérence des 3 modèles, seuils et paliers de triage, rejet des valeurs aberrantes (âges négatifs, IMC irréalistes), parité stricte Backend/CLI et endpoints FastAPI.
 
 ### 4. Déploiement avec Docker
 ```bash
@@ -197,5 +208,5 @@ python agent_decision/train_decision.py
 
 ## 📚 Datasets Utilisés
 
-1. **Chest X-Ray Images (Pneumonia)** — [Kaggle](https://www.kaggle.com/paultimothymooney/chest-xray-pneumonia) : 5 856 radiographies thoraciques pédiatriques et adultes réparties en classes Normal et Pneumonie.
+1. **Chest X-Ray Images (Pneumonia)** — [Kaggle](https://www.kaggle.com/paultimothymooney/chest-xray-pneumonia) : 5 856 radiographies thoraciques pédiatriques (enfants de 1 à 5 ans) réparties en classes Normal et Pneumonie.
 2. **Stroke Prediction Dataset** — [Kaggle](https://www.kaggle.com/fedesoriano/stroke-prediction-dataset) : 5 110 observations cliniques (âge, hypertension, cardiopathie, glycémie, IMC, tabagisme) avec diagnostic avéré d'AVC.
