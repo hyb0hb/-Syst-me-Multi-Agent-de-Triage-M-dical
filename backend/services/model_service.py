@@ -7,9 +7,7 @@ from typing import Any, Dict, Tuple
 import joblib
 import numpy as np
 
-from backend.config import METRICS_PATHS, MODEL_PATHS, ROOT_DIR
-
-DEFAULT_OOF_LR_PATH = ROOT_DIR / "models" / "experiments" / "agent3_retraining" / "model_lr_oof.joblib"
+from backend.config import METRICS_PATHS, MODEL_PATHS
 
 # Cache mémoire des modèles et des métriques avec suivi des horodatages de modification
 MODELS = {
@@ -21,14 +19,10 @@ MODELS_MTIMES: Dict[str, float] = {}
 
 METRICS_CACHE: Dict[str, dict] = {}
 METRICS_MTIMES: Dict[str, float] = {}
-_LAST_ENV_LR: str = ""
 
 
 def extract_agent_metrics(raw: dict, agent_key: str) -> dict:
-    """Extrait de façon standardisée les métriques clés (roc_auc, accuracy, recall, precision, f1).
-    
-    Supporte de manière robuste les variantes de clés et structures des différents rapports scikit-learn.
-    """
+    """Extrait de façon standardisée les métriques clés (roc_auc, accuracy, recall, precision, f1)."""
     if not raw or not isinstance(raw, dict):
         return {
             "roc_auc": 0.0,
@@ -66,7 +60,6 @@ def extract_agent_metrics(raw: dict, agent_key: str) -> dict:
             break
 
     if not class_dict:
-        # Fallback première classe non agrégée
         for k, v in rep.items():
             if isinstance(v, dict) and k not in ("accuracy", "macro avg", "weighted avg") and ("recall" in v or "precision" in v):
                 class_dict = v
@@ -89,18 +82,7 @@ def extract_agent_metrics(raw: dict, agent_key: str) -> dict:
 
 
 def load_metrics(force_reload: bool = False) -> Dict[str, Any]:
-    """Charge et synchronise dynamiquement les métriques des trois agents.
-    
-    Vérifie les timestamps (st_mtime) des fichiers JSON sur disque : si un fichier change
-    (ex: réentraînement d'Agent 3 ou modification des seuils), il est immédiatement rechargé
-    sans nécessiter de redémarrage de serveur ni de modification de code.
-    """
-    global _LAST_ENV_LR
-    env_lr = os.environ.get("MEDTRIAGE_LR_PATH", "")
-    if env_lr != _LAST_ENV_LR:
-        force_reload = True
-        _LAST_ENV_LR = env_lr
-
+    """Charge et synchronise dynamiquement les métriques certifiées des trois agents."""
     for key, path in METRICS_PATHS.items():
         if not path.exists():
             if key not in METRICS_CACHE:
@@ -116,47 +98,14 @@ def load_metrics(force_reload: bool = False) -> Dict[str, Any]:
             if key not in METRICS_CACHE:
                 METRICS_CACHE[key] = {}
 
-    # Par défaut sur main (version-2), utiliser le modèle OOF s'il existe, sinon fallback prod
-    resolved_lr_path = Path(env_lr) if env_lr else (DEFAULT_OOF_LR_PATH if DEFAULT_OOF_LR_PATH.exists() else MODEL_PATHS["lr"])
-    use_oof_metrics = resolved_lr_path.resolve() == DEFAULT_OOF_LR_PATH.resolve() if DEFAULT_OOF_LR_PATH.exists() else False
-
-    if use_oof_metrics or (env_lr and (Path(env_lr).resolve().parent / "training_config.json").exists()):
-        exp_dir = resolved_lr_path.resolve().parent
-        cfg_path = exp_dir / "training_config.json"
-        cmp_path = exp_dir / "comparison_metrics.json"
-        if cfg_path.exists() and cmp_path.exists():
-            try:
-                cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-                cmp_data = json.loads(cmp_path.read_text(encoding="utf-8"))
-                sys_c = cmp_data.get("simulated_quadrant_benchmark_4000", {}).get("System_C2_Voie1_OOFLR_Aligned", {}).get("deployed_p_final_0.70")
-                coefs_oof = cfg.get("agent3_oof_lr", {}).get("coefficients")
-                if sys_c and coefs_oof:
-                    METRICS_CACHE["decision"] = {
-                        "roc_auc": sys_c["roc_auc"],
-                        "coefficients": coefs_oof,
-                        "report": {
-                            "accuracy": sys_c["accuracy_urgent"],
-                            "Urgent": {
-                                "precision": sys_c["precision_urgent"],
-                                "recall": sys_c["recall_urgent"],
-                                "f1-score": sys_c["f1_urgent"],
-                            },
-                        },
-                    }
-            except Exception:
-                pass
-        elif "decision" in METRICS_PATHS and METRICS_PATHS["decision"].exists():
-            METRICS_CACHE["decision"] = json.loads(METRICS_PATHS["decision"].read_text(encoding="utf-8"))
-
-    # Extraction des métriques pour chaque agent
     img_met = extract_agent_metrics(METRICS_CACHE.get("image", {}), "image")
     clin_met = extract_agent_metrics(METRICS_CACHE.get("clinique", {}), "clinique")
     dec_met = extract_agent_metrics(METRICS_CACHE.get("decision", {}), "decision")
 
     coefs = METRICS_CACHE.get("decision", {}).get("coefficients", {})
-    coef_img = float(coefs.get("image", 2.99))
-    coef_clin = float(coefs.get("clinique", 4.24))
-    intercept = float(coefs.get("intercept", -3.31))
+    coef_img = float(coefs.get("image", 2.75))
+    coef_clin = float(coefs.get("clinique", 3.51))
+    intercept = float(coefs.get("intercept", -2.91))
     sign = "+" if intercept >= 0 else "-"
     formula_str = f"z = ({coef_img:.2f} × P_img) + ({coef_clin:.2f} × P_clin) {sign} {abs(intercept):.2f}"
 
@@ -198,7 +147,7 @@ def load_metrics(force_reload: bool = False) -> Dict[str, Any]:
 
 
 def get_models() -> Tuple[object, object, object]:
-    """Charge paresseusement les 3 modèles en RAM et recharge si un fichier a été modifié."""
+    """Charge paresseusement les 3 modèles finaux en RAM et recharge si un fichier a été modifié."""
     # 1. Modèle CNN MobileNetV2 (Agent 1 Vision)
     cnn_path = MODEL_PATHS["cnn"]
     if cnn_path.exists():
@@ -216,14 +165,9 @@ def get_models() -> Tuple[object, object, object]:
             MODELS["rf"] = joblib.load(rf_path)
             MODELS_MTIMES["rf"] = mtime
 
-    # 3. Modèle Régression Logistique (Agent 3 Consensus — OOF par défaut, surcharge via MEDTRIAGE_LR_PATH)
+    # 3. Modèle Régression Logistique OOF (Agent 3 Consensus)
     env_lr = os.environ.get("MEDTRIAGE_LR_PATH")
-    if env_lr:
-        lr_path = Path(env_lr)
-    elif DEFAULT_OOF_LR_PATH.exists():
-        lr_path = DEFAULT_OOF_LR_PATH
-    else:
-        lr_path = MODEL_PATHS["lr"]
+    lr_path = Path(env_lr) if env_lr else MODEL_PATHS["lr"]
     if lr_path.exists():
         mtime = (str(lr_path), lr_path.stat().st_mtime)
         if MODELS["lr"] is None or MODELS_MTIMES.get("lr") != mtime:

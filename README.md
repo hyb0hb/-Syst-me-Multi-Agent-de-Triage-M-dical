@@ -50,12 +50,11 @@ Trois agents spécialisés collaborent pour produire une orientation de triage h
 ```
 ├── agent_image/        Agent 1 — CNN MobileNetV2 (train_cnn.py, model_cnn.keras)
 ├── agent_clinique/     Agent 2 — Random Forest (train_rf.py, model_rf.joblib)
-├── agent_decision/     Agent 3 — LR OOF (train_experiment_agent3.py, model_lr_oof.joblib)
+├── agent_decision/     Agent 3 — LR OOF (train_decision.py, model_lr.joblib)
 ├── backend/            API REST FastAPI (services, routers, schemas)
-├── models/             Modèles entraînés et artefacts expérimentaux
 ├── static/             Frontend Web (index.html, style.css, app.js)
-├── tests/              Suite de 33 tests automatisés (test_system.py)
-├── data/               Datasets (non inclus — voir ci-dessous)
+├── tests/              Suite de 23 tests automatisés (test_system.py)
+├── data/               Datasets et historique des requêtes
 ├── demo.py             Démonstrateur CLI
 ├── server.py           Serveur FastAPI + Interface Web
 └── requirements.txt    Dépendances Python
@@ -89,7 +88,7 @@ pip install -r requirements.txt
 ```bash
 py tests/test_system.py
 ```
-Valide 33 points critiques : séparation train/test, intégrité des modèles, cohérence des endpoints REST, absence de fuite de données.
+Valide 23 points critiques : séparation train/test, intégrité des modèles, cohérence des endpoints REST, absence de fuite de données.
 
 ### 2. Démo en ligne de commande (CLI)
 ```bash
@@ -102,9 +101,13 @@ py demo.py --sample normal --age 72 --gender Female --hypertension 1 --heart-dis
 
 ### 3. Interface Web
 ```bash
+# Port par défaut (8000)
 py server.py
+
+# Ou sur le port 8001
+py server.py --port 8001
 ```
-Ouvrez **[http://127.0.0.1:8000](http://127.0.0.1:8000)**
+Ouvrez votre navigateur sur **[http://127.0.0.1:8000](http://127.0.0.1:8000)** (ou **[http://127.0.0.1:8001](http://127.0.0.1:8001)**)
 
 - 4 dossiers patients préenregistrés pour tester les scénarios cliniques
 - Formulaire interactif avec téléversement de radiographies
@@ -130,7 +133,7 @@ py agent_image/train_cnn.py
 py agent_clinique/train_rf.py
 
 # Agent 3 — Régression Logistique OOF
-py agent_decision/train_experiment_agent3.py
+py agent_decision/train_decision.py
 ```
 
 ---

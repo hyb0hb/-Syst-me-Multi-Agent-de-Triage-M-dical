@@ -1,95 +1,47 @@
 {
-  "roc_auc": 0.8387426666666667,
-  "pr_auc": 0.9282495689682888,
-  "brier_score": 0.1700347545034669,
+  "roc_auc": 0.8768,
+  "pr_auc": 0.9555,
+  "brier_score": 0.1256,
   "coefficients": {
-    "image": 3.139732370651969,
-    "clinique": 3.6107642989494453,
-    "intercept": -2.9170170287805024
+    "image": 2.748809988485486,
+    "clinique": 3.5081655346404492,
+    "intercept": -2.905278548271105
   },
   "report": {
     "Non urgent": {
-      "precision": 0.552924791086351,
-      "recall": 0.794,
-      "f1-score": 0.6518883415435139,
-      "support": 500.0
+      "precision": 0.7146,
+      "recall": 0.641,
+      "f1-score": 0.6758,
+      "support": 1000.0
     },
     "Urgent": {
-      "precision": 0.9196567862714509,
-      "recall": 0.786,
-      "f1-score": 0.8475916606757729,
-      "support": 1500.0
+      "precision": 0.8843,
+      "recall": 0.9147,
+      "f1-score": 0.8992,
+      "support": 3000.0
     },
-    "accuracy": 0.788,
+    "accuracy": 0.8462,
     "macro avg": {
-      "precision": 0.736290788678901,
-      "recall": 0.79,
-      "f1-score": 0.7497400011096433,
-      "support": 2000.0
+      "precision": 0.7995,
+      "recall": 0.7778,
+      "f1-score": 0.7875,
+      "support": 4000.0
     },
     "weighted avg": {
-      "precision": 0.8279737874751759,
-      "recall": 0.788,
-      "f1-score": 0.798665830892708,
-      "support": 2000.0
+      "precision": 0.8419,
+      "recall": 0.8462,
+      "f1-score": 0.8434,
+      "support": 4000.0
     }
   },
-  "confusion_matrix_composite_0.5": [
-    [
-      397,
-      103
-    ],
-    [
-      321,
-      1179
-    ]
-  ],
   "deployed_rule_max_0.70": {
     "threshold": 0.7,
-    "confusion_matrix": [
-      [
-        345,
-        155
-      ],
-      [
-        263,
-        1237
-      ]
-    ],
-    "report": {
-      "Non urgent": {
-        "precision": 0.5674342105263158,
-        "recall": 0.69,
-        "f1-score": 0.6227436823104693,
-        "support": 500.0
-      },
-      "Urgent": {
-        "precision": 0.8886494252873564,
-        "recall": 0.8246666666666667,
-        "f1-score": 0.8554633471645919,
-        "support": 1500.0
-      },
-      "accuracy": 0.791,
-      "macro avg": {
-        "precision": 0.7280418179068361,
-        "recall": 0.7573333333333333,
-        "f1-score": 0.7391035147375307,
-        "support": 2000.0
-      },
-      "weighted avg": {
-        "precision": 0.8083456215970962,
-        "recall": 0.791,
-        "f1-score": 0.7972834309510612,
-        "support": 2000.0
-      }
-    },
-    "roc_auc_pfinal": 0.8706273333333333,
-    "pr_auc_pfinal": 0.954193974296916
+    "roc_auc_pfinal": 0.8768,
+    "pr_auc_pfinal": 0.9555
   },
-  "methodology": {
-    "agent_type": "Hierarchical Triage Supervisor (Late Stacking Orchestration)",
-    "training_sampling": "Balanced 4-Quadrant Stratified Sampling",
-    "cross_patient_paired": false,
-    "warning": "Prototype experimental - non valide pour diagnostic clinique in vivo."
+  "training": {
+    "method": "5-Fold Out-of-Fold (OOF) Late Stacking",
+    "estimator": "LogisticRegression(class_weight='balanced')",
+    "cross_patient_paired": false
   }
 }

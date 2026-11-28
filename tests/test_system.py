@@ -308,7 +308,7 @@ class TestFastAPIRestAPI(unittest.TestCase):
 
 
 class TestAgent3ThresholdAlignmentAndExperiment(unittest.TestCase):
-    """Tests de non-régression pour l'alignement de seuil SAU et les artefacts OOF expérimentaux."""
+    """Tests de non-régression pour l'alignement de seuil SAU et l'Agent 3 OOF final."""
 
     def test_align_clinical_risk_monotonicity_and_bounds(self):
         """Sous 0.65 rien ne change ; à 0.65 exact le score bascule à 0.70 (URGENT)."""
@@ -331,9 +331,7 @@ class TestAgent3ThresholdAlignmentAndExperiment(unittest.TestCase):
 
     def test_cli_and_backend_decision_parity(self):
         """Vérifie que demo.py et triage_service.py prennent des décisions strictement cohérentes."""
-        exp_lr_path = ROOT / "models" / "experiments" / "agent3_retraining" / "model_lr_oof.joblib"
-        lr_path = exp_lr_path if exp_lr_path.exists() else (ROOT / "agent_decision" / "model_lr.joblib")
-        lr = joblib.load(lr_path)
+        lr = joblib.load(ROOT / "agent_decision" / "model_lr.joblib")
         if not hasattr(lr, "multi_class"):
             lr.multi_class = "auto"
         for p_img, p_clin in [(0.0033, 0.0059), (0.0033, 0.66), (0.98, 0.46), (0.98, 0.80)]:
@@ -342,63 +340,35 @@ class TestAgent3ThresholdAlignmentAndExperiment(unittest.TestCase):
             self.assertAlmostEqual(p_srv, p_cli, places=6)
             self.assertTrue(niv_cli.startswith(niv_srv), msg=f"{niv_cli} vs {niv_srv}")
 
-    def test_experimental_oof_artifacts_integrity(self):
-        """Vérifie le modèle expérimental isolé OOF, l'absence de fuite et de faux appariements."""
-        import pandas as pd
-        exp_dir = ROOT / "models" / "experiments" / "agent3_retraining"
-        cfg_path = exp_dir / "training_config.json"
-        oof_path = exp_dir / "oof_predictions_agent2_voie1.csv"
-        lr_exp_path = exp_dir / "model_lr_oof.joblib"
-        self.assertTrue(cfg_path.exists(), f"Configuration expérimentale manquante : {cfg_path}")
-        self.assertTrue(oof_path.exists(), f"Prédictions OOF manquantes : {oof_path}")
-        self.assertTrue(lr_exp_path.exists(), f"Modèle expérimental manquant : {lr_exp_path}")
+    def test_agent3_final_oof_model_integrity(self):
+        """Vérifie le modèle final OOF et ses coefficients dans agent_decision."""
+        lr_path = ROOT / "agent_decision" / "model_lr.joblib"
+        met_path = ROOT / "agent_decision" / "metrics.json"
+        self.assertTrue(lr_path.exists(), f"Modèle manquant : {lr_path}")
+        self.assertTrue(met_path.exists(), f"Métriques manquantes : {met_path}")
 
-        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-        audit = cfg["dataset_audit"]
-        self.assertFalse(audit["cross_patient_paired"])
-        self.assertEqual(audit["clinical_train_rows"], 4088)
-        self.assertEqual(audit["clinical_train_positives"], 199)
-        self.assertEqual(audit["clinical_test_rows"], 1022)
-        self.assertEqual(audit["clinical_test_positives"], 50)
+        lr = joblib.load(lr_path)
+        c_img, c_clin = float(lr.coef_[0][0]), float(lr.coef_[0][1])
+        intercept = float(lr.intercept_[0])
 
-        oof_df = pd.read_csv(oof_path)
-        self.assertEqual(len(oof_df), 4088)
-        self.assertEqual(int(oof_df["label"].sum()), 199)
+        self.assertAlmostEqual(c_img, 2.7488, places=3)
+        self.assertAlmostEqual(c_clin, 3.5082, places=3)
+        self.assertAlmostEqual(intercept, -2.9053, places=3)
 
-        lr_exp = joblib.load(lr_exp_path)
-        c_img, c_clin = float(lr_exp.coef_[0][0]), float(lr_exp.coef_[0][1])
-        self.assertGreater(c_img, 1.0)
-        self.assertGreater(c_clin, 1.0)
-        self.assertLess(max(c_img, c_clin) / min(c_img, c_clin), 2.5)
-        self.assertLess(float(lr_exp.predict_proba([[0.05, 0.05]])[0, 1]), 0.15)
-        self.assertGreater(float(lr_exp.predict_proba([[0.70, 0.70]])[0, 1]), 0.75)
+        self.assertLess(float(lr.predict_proba([[0.05, 0.05]])[0, 1]), 0.15)
+        self.assertGreater(float(lr.predict_proba([[0.70, 0.70]])[0, 1]), 0.75)
 
-    def test_experimental_lr_env_override_leaves_prod_intact(self):
-        """Vérifie que main charge OOF par défaut et que MEDTRIAGE_LR_PATH permet de basculer sans altérer prod."""
+    def test_model_service_loads_final_models(self):
+        """Vérifie que model_service charge directement les modèles finaux sans dépendance externe."""
         from backend.services import model_service
-        legacy_lr = ROOT / "agent_decision" / "model_lr.joblib"
-        prev = os.environ.get("MEDTRIAGE_LR_PATH")
-        try:
-            os.environ.pop("MEDTRIAGE_LR_PATH", None)
-            model_service.MODELS["lr"] = None
-            model_service.MODELS_MTIMES.pop("lr", None)
-            _, _, default_lr = model_service.get_models()
-            self.assertAlmostEqual(float(default_lr.coef_[0][0]), 2.7488, places=3)
-            default_met = model_service.load_metrics(force_reload=True)
-            self.assertAlmostEqual(float(default_met["coefficients"]["image"]), 2.7488, places=3)
-            self.assertIn("2.75", default_met["decision_formula"])
-
-            os.environ["MEDTRIAGE_LR_PATH"] = str(legacy_lr)
-            _, _, loaded_lr = model_service.get_models()
-            self.assertAlmostEqual(float(loaded_lr.coef_[0][0]), 3.1397, places=3)
-        finally:
-            if prev is None:
-                os.environ.pop("MEDTRIAGE_LR_PATH", None)
-            else:
-                os.environ["MEDTRIAGE_LR_PATH"] = prev
-            model_service.MODELS["lr"] = None
-            model_service.MODELS_MTIMES.pop("lr", None)
-            model_service.load_metrics(force_reload=True)
+        cnn, rf, lr = model_service.get_models()
+        self.assertIsNotNone(cnn)
+        self.assertIsNotNone(rf)
+        self.assertIsNotNone(lr)
+        self.assertAlmostEqual(float(lr.coef_[0][0]), 2.7488, places=3)
+        met = model_service.load_metrics(force_reload=True)
+        self.assertIn("2.75", met["decision_formula"])
+        self.assertIn("3.51", met["decision_formula"])
 
 
 if __name__ == "__main__":

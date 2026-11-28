@@ -72,14 +72,7 @@ def agent_clinique(row):
 
 def agent_decision(p_img, p_clin, clin_threshold=None):
     """Agent 3 : superviseur de consensus (Régression Logistique OOF + Principe de Précaution SAU)."""
-    env_lr = os.environ.get("MEDTRIAGE_LR_PATH")
-    oof_lr_path = ROOT / "models" / "experiments" / "agent3_retraining" / "model_lr_oof.joblib"
-    if env_lr:
-        model_path = Path(env_lr)
-    elif oof_lr_path.exists():
-        model_path = oof_lr_path
-    else:
-        model_path = ROOT / "agent_decision" / "model_lr.joblib"
+    model_path = ROOT / "agent_decision" / "model_lr.joblib"
     if not model_path.exists():
         raise FileNotFoundError(f"Modèle Régression Logistique introuvable : {model_path}")
 
