@@ -92,6 +92,10 @@ Les trois lignes ne sont pas comparables : jeux d'évaluation et prévalences di
 │   ├── routers/            # Endpoints API (/triage, /presets, /metrics, /history)
 │   ├── schemas/            # Validation des schémas d'entrée/sortie Pydantic
 │   └── services/           # Logique métier (triage, modèles, historique)
+├── docs/                   # Rapports académiques et figures vectorielles
+│   ├── rapport_agent2_complet.tex # Rapport autonome complet (prêt pour Overleaf)
+│   ├── rapport_agent2_snippet.tex # Section modulaire à insérer
+│   └── figures/            # Graphiques haute résolution (matrice, compromis seuil)
 ├── static/                 # Interface Web interactive
 │   ├── index.html          # Dashboard médical responsive (sans hardcoding)
 │   ├── style.css           # Thème médical hospitalier
@@ -178,6 +182,8 @@ Vérifie 23 points critiques : chargement et cohérence des 3 modèles, seuils e
 | `GET` | `/api/metrics` | Retourne les métriques certifiées dynamiques des 3 agents et la formule de consensus. |
 | `GET` | `/api/history` | Historique des évaluations de triage réalisées. |
 | `GET` | `/api/health` | Vérification de l'état opérationnel du serveur. |
+| `GET` | `/api/random-case` | Tirage d'un profil et d'une radio aléatoires issus du jeu de test. |
+| `GET` | `/api/dataset-image` | Récupération sécurisée d'un cliché radiologique du jeu de test. |
 
 ---
 
