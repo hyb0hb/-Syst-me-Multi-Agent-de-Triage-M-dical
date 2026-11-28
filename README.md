@@ -102,8 +102,6 @@ Les trois lignes ne sont pas comparables : jeux d'évaluation et prévalences di
 ├── data/                   # Datasets Kaggle et historique des requêtes
 ├── demo.py                 # Démonstrateur CLI autonome
 ├── server.py               # Script de lancement avec option --port
-├── Dockerfile              # Conteneurisation de production (Python 3.11-slim)
-├── docker-compose.yml      # Orchestration Docker Compose
 └── requirements.txt        # Dépendances Python épinglées
 ```
 
@@ -168,13 +166,6 @@ python demo.py --random 3
 python -m unittest discover -s tests -v
 ```
 Vérifie 23 points critiques : chargement et cohérence des 3 modèles, seuils et paliers de triage, rejet des valeurs aberrantes (âges négatifs, IMC irréalistes), parité stricte Backend/CLI et endpoints FastAPI.
-
-### 4. Déploiement avec Docker
-```bash
-# Démarrage avec Docker Compose
-docker compose up --build
-```
-L'interface est accessible sur **[http://localhost:8000](http://localhost:8000)** avec synchronisation des fichiers (*Hot-Reload*).
 
 ---
 
