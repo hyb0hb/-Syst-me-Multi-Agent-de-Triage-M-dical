@@ -13,26 +13,27 @@ Ce module s'intègre dans le Système Multi-Agent global de Triage Médical (fus
 
 ---
 
-## 2. Spécifications Techniques
+## 2. Spécifications Techniques (Voie 1 Optimisée)
 
-* **Algorithme :** `RandomForestClassifier` (Scikit-Learn, 100 arbres de décision, profondeur max contrôlée).
-* **Gestion du déséquilibre de classe :** Configuration `class_weight='balanced'` pour maximiser la sensibilité sur les cas d'AVC rares (4.9 % de prévalence).
-* **Prétraitement :**
-  * Imputation de la médiane pour l'IMC (`bmi`).
-  * Encodage One-Hot pour les variables qualitatives (`gender`, `work_type`, `Residence_type`, `smoking_status`).
-  * Mise à l'échelle standard (`StandardScaler`) des variables continues.
+* **Algorithme :** `RandomForestClassifier` (Scikit-Learn, 700 arbres régularisés : `max_depth=5`, `min_samples_leaf=10`, `min_samples_split=20`, `max_features=0.5`, `criterion='log_loss'`).
+* **Gestion du déséquilibre de classe :** `class_weight='balanced_subsample'` et seuil de décision gelé par validation croisée **5-Fold OOF** (`threshold = 0.65`).
+* **Prétraitement (`ColumnTransformer`) :**
+  * `MissingIndicator` sur `bmi` (capture le signal clinique lié à l'IMC non renseigné) + imputation médiane (`SimpleImputer`).
+  * Interactions cardio-vasculaires ciblées (`age × hypertension`, `age × heart_disease`) via `PolynomialFeatures(degree=2, interaction_only=True)`.
+  * Encodage `OneHotEncoder(handle_unknown='ignore')` pour les variables qualitatives (`gender`, `ever_married`, `work_type`, `Residence_type`, `smoking_status`).
 
 ---
 
-## 3. Métriques de Performance Certifiées
+## 3. Métriques de Performance Certifiées (Test Held-Out, N=1 022)
 
 | Métrique | Valeur | Interprétation clinique |
 |---|---|---|
-| **ROC-AUC** | **0.846** | Excellente capacité de discrimination globale. |
-| **Rappel (Sensibilité AVC)** | **80.0 %** | Détection prioritaire de 4 AVC sur 5 (sécurité du patient). |
-| **Spécificité (Sains)** | **76.9 %** | Filtrage efficace des profils ambulatoires non urgents. |
-| **F1-Score Global Pondéré** | **83.4 %** | Haute performance moyenne sur l'ensemble de la population. |
-| **F1-Score AVC (Classe cible)** | **25.4 %** | Compromis mathématique lié à la rareté de la maladie (4.9 % de prévalence). |
+| **ROC-AUC** | **0.851** | Discrimination globale améliorée (OOF 5-fold = 0.845). |
+| **PR-AUC** | **0.245** | Gain de précision sur classe minoritaire rare (4.9 % AVC). |
+| **Rappel AVC (seuil OOF 0.65)** | **62.0 %** | 31/50 AVC détectés avec calibration nettement améliorée. |
+| **Spécificité (Sains)** | **89.9 %** | Réduction des fausses alertes (874/972 sains bien filtrés). |
+| **F1-Score AVC (Classe cible)** | **34.6 %** | Gain significatif (+9 pts vs baseline) au seuil OOF gelé `0.65`. |
+| **Brier Score** | **0.142** | Probabilités mieux calibrées pour la fusion Agent 3. |
 
 ---
 
@@ -60,4 +61,4 @@ Ce module s'intègre dans le Système Multi-Agent global de Triage Médical (fus
 ```bash
 py -m unittest tests/test_agent_clinique.py -v
 ```
-*(Résultat : 5 tests réussis sur 5 — conformité 100 %).*
+*(Résultat : 6 tests réussis sur 6 — conformité 100 %).*

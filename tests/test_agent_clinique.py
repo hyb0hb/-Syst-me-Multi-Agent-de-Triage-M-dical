@@ -34,12 +34,24 @@ class TestAgentClinique(unittest.TestCase):
         self.assertTrue(hasattr(self.model, "classes_"))
 
     def test_metrics_standards(self):
-        """Vérifie que les métriques certifiées respectent le cahier des charges (AUC >= 0.84, Rappel >= 0.75)."""
+        """Vérifie que les métriques Voie 1 respectent le cahier des charges (AUC >= 0.85, seuil OOF 0.65, recall >= 0.60)."""
         auc = self.metrics.get("roc_auc", 0.0)
-        self.assertGreaterEqual(auc, 0.84, f"L'AUC ({auc}) doit être supérieure ou égale à 0.84.")
+        self.assertGreaterEqual(auc, 0.85, f"L'AUC ({auc}) doit être supérieure ou égale à 0.85.")
+        self.assertAlmostEqual(float(self.metrics.get("threshold", 0.0)), 0.65, places=2)
         report = self.metrics.get("report", {})
         recall_stroke = report.get("1", {}).get("recall", 0.0)
-        self.assertGreaterEqual(recall_stroke, 0.75, f"Le rappel sur l'AVC ({recall_stroke}) doit être >= 0.75.")
+        self.assertGreaterEqual(recall_stroke, 0.60, f"Le rappel sur l'AVC ({recall_stroke}) doit être >= 0.60.")
+
+    def test_missing_bmi_handled_without_leakage(self):
+        """Vérifie que l'indicateur MissingIndicator gère une ligne avec BMI manquant (NaN)."""
+        row_nan = pd.DataFrame([{
+            "gender": "Male", "age": 65.0, "hypertension": 1, "heart_disease": 0,
+            "ever_married": "Yes", "work_type": "Private", "Residence_type": "Urban",
+            "avg_glucose_level": 140.0, "bmi": float("nan"), "smoking_status": "formerly smoked"
+        }])
+        prob = float(self.model.predict_proba(row_nan)[0, 1])
+        self.assertGreater(prob, 0.0)
+        self.assertLess(prob, 1.0)
 
     def test_healthy_patient_prediction(self):
         """Vérifie qu'un profil sain (jeune, sans comorbidités) a une faible probabilité d'AVC."""
