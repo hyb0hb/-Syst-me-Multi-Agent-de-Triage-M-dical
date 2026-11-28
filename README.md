@@ -1,164 +1,201 @@
-# Système Multi-Agent de Triage Médical
+# Système Multi-Agent de Triage Médical (MedTriage AI)
 
-Projet d'Intelligence Artificielle et Systèmes Multi-Agents (Data Mining & Deep Learning).  
-Trois agents spécialisés collaborent pour produire une orientation de triage hospitalier automatisée combinant imagerie médicale et données cliniques.
+Système d'Intelligence Artificielle et d'Aide à la Décision Médicale (Data Mining, Deep Learning & Systèmes Multi-Agents).  
+Trois agents spécialisés collaborent pour produire une orientation de triage hospitalier automatisée, explicable et sécurisée, combinant imagerie thoracique et données cliniques.
 
-> **Avertissement déontologique :** Prototype universitaire à visée de recherche et de démonstration. Ne constitue pas un dispositif médical validé.
-
----
-
-## Architecture Générale
-
-```
-  Radiographie ──────► [Agent 1 : Vision CNN MobileNetV2] ─────► P(pneumonie) ─┐
-                                                                                ├─► [Agent 3 : Consensus & Triage]
-  Données cliniques ─► [Agent 2 : Clinique Random Forest] ────► P(AVC) ────────┘    Régression Logistique OOF
-                                                                                      │
-                                                                                      ▼
-                                                                      URGENT / À SURVEILLER / NON URGENT
-                                                                     (Priorités SAU inspirées de MTS / ESI)
-```
+> **Avertissement déontologique :** Prototype universitaire à visée de recherche et de démonstration académique. Ne constitue pas un dispositif médical certifié pour une utilisation in vivo.
 
 ---
 
-## Agents
+## 🏥 Architecture Générale
+
+```
+  Cliché radiologique ──► [Agent 1 : Vision CNN MobileNetV2] ─────► P(pneumonie) ──┐
+                                                                                   ├─► [Agent 3 : Consensus SAU]
+  Constantes patient  ──► [Agent 2 : Clinique Random Forest] ────► P(AVC) ─────────┘    Régression Logistique OOF
+                                                                                         │ + Principe de précaution
+                                                                                         ▼
+                                                                         URGENT / À SURVEILLER / NON URGENT
+                                                                       (Priorités inspirées des échelles MTS / ESI)
+```
+
+---
+
+## 🤖 Description des 3 Agents
 
 ### Agent 1 — Vision par Ordinateur (CNN)
-- Architecture : **MobileNetV2** avec Transfer Learning (ImageNet)
-- Tâche : Détection de pneumonie sur radiographie thoracique
-- Dataset : Chest X-Ray Images (Kaggle) — 5 216 images
-- Recall : **0.985** sur le jeu de test
+- **Architecture** : **MobileNetV2** avec Transfer Learning (ImageNet) fine-tuné sur clichés thoraciques.
+- **Tâche** : Détection de foyers infectieux pulmonaires et d'opacités alvéolaires (pneumonie).
+- **Dataset** : *Chest X-Ray Images (Pneumonia)* — Kaggle (5 216 clichés d'entraînement, 624 clichés de test).
+- **Performances test** : **ROC-AUC = 0.965** | **Rappel Pneumonie = 98.5%** (384 cas détectés sur 390, seulement 6 faux négatifs).
 
-### Agent 2 — Analyse Clinique (Random Forest)
-- Architecture : **Random Forest** avec ColumnTransformer (StandardScaler + OneHotEncoder)
-- Tâche : Estimation du risque d'AVC à partir des constantes cliniques
-- Dataset : Stroke Prediction Dataset (Kaggle) — 5 110 patients
-- Variables : âge, IMC, glycémie, genre, hypertension, cardiopathie, tabagisme
-- Recall : **0.620** sur le jeu de test
+### Agent 2 — Risque Neuro-Vasculaire (Random Forest — Voie 1)
+- **Architecture** : **Random Forest** régularisé avec pipeline sans fuite (`MissingIndicator` sur l'IMC + `SimpleImputer` + `StandardScaler` + interactions ciblées `âge × comorbidités`).
+- **Tâche** : Détection précoce du risque d'Accident Vasculaire Cérébral (AVC) à partir des constantes tabulaires.
+- **Dataset** : *Stroke Prediction Dataset* — Kaggle (5 110 patients, découpage 80/20 canonique stratifié).
+- **Calibration OOF** : Seuil décisionnel gelé à **0.65** par validation croisée 5-fold Out-Of-Fold.
+- **Performances test (1 022 patients)** : **ROC-AUC = 0.851** | **Rappel AVC = 62.0%** (contre 40.0% sur le modèle initial) | **Spécificité = 89.9%**.
 
-### Agent 3 — Décision & Fusion (Régression Logistique)
-- Architecture : **Régression Logistique L2** entraînée par validation croisée OOF
-- Tâche : Fusion des probabilités des Agents 1 et 2 → catégorie de triage finale
-- Méthode OOF : prédictions hors-échantillon pour éviter toute fuite de données
-- Seuil clinique aligné à 0.70 pour maximiser le recall médical
-- Recall système : **0.620** | ROC-AUC : **0.851** (test held-out, N=1 022, 50 AVC)
-
----
-
-## Structure du Dépôt
-
-```
-├── agent_image/        Agent 1 — CNN MobileNetV2 (train_cnn.py, model_cnn.keras)
-├── agent_clinique/     Agent 2 — Random Forest (train_rf.py, model_rf.joblib)
-├── agent_decision/     Agent 3 — LR OOF (train_decision.py, model_lr.joblib)
-├── backend/            API REST FastAPI (services, routers, schemas)
-├── static/             Frontend Web (index.html, style.css, app.js)
-├── tests/              Suite de 23 tests automatisés (test_system.py)
-├── data/               Datasets et historique des requêtes
-├── demo.py             Démonstrateur CLI
-├── server.py           Serveur FastAPI + Interface Web
-└── requirements.txt    Dépendances Python
-```
+### Agent 3 — Consensus Décisionnel & Triage (Régression Logistique OOF)
+- **Architecture** : **Régression Logistique L2** (`class_weight='balanced'`) entraînée par late-stacking 5-fold OOF sur un banc équilibré de 4 quadrants cliniques (4 000 cas).
+- **Poids réels appris** :
+  $$z = (2.75 \times P_{\text{img}}) + (3.51 \times P_{\text{clin}}) - 2.91$$
+- **Principe de Précaution SAU (Emergency Safety Net)** :
+  $$P_{\text{triage}} = \max\left(P_{\text{composite}}, P_{\text{img}}, \text{align}(P_{\text{clin}})\right)$$
+  Dès que l'Agent 2 détecte un risque d'AVC ($P_{\text{clin}} \ge 0.65$), le score est réaligné à $\ge 0.70$ (**URGENT**). Aucun sous-triage possible d'un AVC isolé à radio saine.
+- **Performances système complet** : **ROC-AUC = 0.877** | **PR-AUC = 0.955** | **Rappel Cas Urgents = 91.5%** | **Exactitude = 84.6%**.
 
 ---
 
-## Installation Rapide
+## 📊 Tableau Synthétique des Performances Certifiées
 
+| Agent | Modèle | Jeu d'évaluation | ROC-AUC | Rappel Critique | Précision | Exactitude |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| **Agent 1** (Imagerie) | MobileNetV2 (CNN) | Test Kaggle (N=624) | **0.965** | **98.5%** *(Pneumonie)* | 82.4% | 85.9% |
+| **Agent 2** (Clinique) | Random Forest Voie 1 | Test Kaggle (N=1 022) | **0.851** | **62.0%** *(AVC)* | 24.0% | 88.6% |
+| **Agent 3** (Consensus) | Régression Logistique + SAU | Quadrants test (N=4 000) | **0.877** | **91.5%** *(Urgences)* | 88.4% | 84.6% |
+
+> **Principe médical fondamental :** Le **rappel** est la priorité absolue aux urgences. Un faux négatif (pathologie grave non diagnostiquée) engage le pronostic vital, alors qu'un faux positif entraîne simplement des examens complémentaires de réassurance.
+
+---
+
+## 📁 Structure du Projet
+
+```
+.
+├── agent_image/            # Agent 1 : Vision par Ordinateur
+│   ├── model_cnn.keras     # Poids réels du modèle MobileNetV2 (20.88 Mo)
+│   ├── metrics.json        # Métriques certifiées du CNN
+│   └── train_cnn.py        # Script de fine-tuning reproductible
+├── agent_clinique/         # Agent 2 : Risque Neuro-vasculaire
+│   ├── model_rf.joblib     # Pipeline Random Forest optimisé (2.31 Mo)
+│   ├── metrics.json        # Métriques certifiées de l'Agent 2
+│   └── train_rf.py         # Script d'entraînement 5-fold OOF Voie 1
+├── agent_decision/         # Agent 3 : Superviseur de Consensus
+│   ├── model_lr.joblib     # Modèle binaire de Régression Logistique (879 o)
+│   ├── metrics.json        # Métriques certifiées et formule dynamique
+│   └── train_decision.py   # Script de late-stacking OOF 4-quadrants
+├── backend/                # API REST FastAPI modulaire
+│   ├── main.py             # Point d'entrée de l'application FastAPI
+│   ├── config.py           # Configuration centralisée des chemins et constantes
+│   ├── routers/            # Endpoints API (/triage, /presets, /metrics, /history)
+│   ├── schemas/            # Validation des schémas d'entrée/sortie Pydantic
+│   └── services/           # Logique métier (triage, modèles, historique)
+├── static/                 # Interface Web interactive
+│   ├── index.html          # Dashboard médical responsive (sans hardcoding)
+│   ├── style.css           # Thème médical hospitalier
+│   ├── app.js              # Logique UI dynamique et appels API en temps réel
+│   └── samples/            # Clichés radiologiques types (normal.jpg, pneumonia.jpg)
+├── tests/                  # Banc de validation automatisé
+│   └── test_system.py      # 23 tests unitaires et d'intégration
+├── data/                   # Datasets Kaggle et historique des requêtes
+├── demo.py                 # Démonstrateur CLI autonome
+├── server.py               # Script de lancement avec option --port
+├── Dockerfile              # Conteneurisation de production (Python 3.11-slim)
+├── docker-compose.yml      # Orchestration Docker Compose
+└── requirements.txt        # Dépendances Python épinglées
+```
+
+---
+
+## 🚀 Installation & Démarrage
+
+### 1. Prérequis
+- Python 3.10 à 3.13 installé.
+- Git.
+
+### 2. Cloner et installer
 ```bash
-# 1. Cloner le dépôt
+# Cloner le dépôt
 git clone https://github.com/hyb0hb/-Syst-me-Multi-Agent-de-Triage-M-dical.git
 cd -Syst-me-Multi-Agent-de-Triage-M-dical
 
-# 2. Créer l'environnement virtuel (Python 3.10 à 3.13)
-py -m venv .venv
-.venv\Scripts\activate        # Windows
+# Créer et activer l'environnement virtuel
+python -m venv .venv
+.venv\Scripts\activate        # Windows (PowerShell / CMD)
 # source .venv/bin/activate   # Linux / macOS
 
-# 3. Installer les dépendances
+# Installer les dépendances
 pip install -r requirements.txt
 ```
 
-> **Note :** Les modèles entraînés (`.keras`, `.joblib`) et les images d'exemples (`static/samples/`) sont **déjà inclus**. Vous pouvez lancer les tests et la démo immédiatement sans télécharger les datasets.
+> **Note :** Les modèles entraînés (`.keras`, `.joblib`) et les radiographies d'exemples sont **déjà inclus dans le dépôt**. Aucun entraînement n'est requis pour exécuter le système.
 
 ---
 
-## Utilisation
+## 💻 Utilisation
 
-### 1. Tests automatisés
+### 1. Lancer l'Interface Web & l'API REST
 ```bash
-py tests/test_system.py
-```
-Valide 23 points critiques : séparation train/test, intégrité des modèles, cohérence des endpoints REST, absence de fuite de données.
+# Lancement direct sur le port 8000 par défaut
+python server.py
 
-### 2. Démo en ligne de commande (CLI)
+# Ou sur un port personnalisé (ex: 8001)
+python server.py --port 8001
+```
+Accédez au tableau de bord dans votre navigateur : **[http://127.0.0.1:8001](http://127.0.0.1:8001)** (ou `http://127.0.0.1:8000`).
+
+- **Presets cliniques** : testez en 1 clic les 4 cas types (détresse respiratoire, AVC aigu, choc mixte, routine).
+- **Mode aléatoire** : pioche un patient réel depuis le dataset de test.
+- **Formulaire complet** : téléversez n'importe quelle radiographie thoracique (JPEG/PNG) et ajustez les constantes physiologiques.
+
+### 2. Démonstrateur en Ligne de Commande (CLI)
+Le script [demo.py](file:///c:/Users/dell/-Syst-me-Multi-Agent-de-Triage-M-dical/demo.py) s'exécute directement sans serveur web :
 ```bash
-# Suspicion d'urgence respiratoire
-py demo.py --sample pneumonia --age 54 --gender Male --glucose 98.4 --bmi 26.2
+# Cas 1 : Détresse respiratoire aiguë (pneumonie)
+python demo.py --sample pneumonia --age 54 --gender Male --glucose 98.4 --bmi 26.2
 
-# Suspicion d'AVC
-py demo.py --sample normal --age 72 --gender Female --hypertension 1 --heart-disease 1 --glucose 215.3 --bmi 34.8
+# Cas 2 : Suspicion d'AVC avec cliché pulmonaire sain
+python demo.py --sample normal --age 72 --gender Female --hypertension 1 --heart-disease 1 --glucose 215.3 --bmi 34.8
+
+# Mode aléatoire sur le dataset de test
+python demo.py --random 3
 ```
 
-### 3. Interface Web
+### 3. Exécuter la Suite de Tests (23/23 Tests)
 ```bash
-# Port par défaut (8000)
-py server.py
-
-# Ou sur le port 8001
-py server.py --port 8001
+python -m unittest discover -s tests -v
 ```
-Ouvrez votre navigateur sur **[http://127.0.0.1:8000](http://127.0.0.1:8000)** (ou **[http://127.0.0.1:8001](http://127.0.0.1:8001)**)
+Vérifie 23 points critiques : intégrité des 3 modèles, absence de fuite statistique, rejet des valeurs aberrantes (âges négatifs, IMC irréalistes), parité stricte Backend/CLI et endpoints FastAPI.
 
-- 4 dossiers patients préenregistrés pour tester les scénarios cliniques
-- Formulaire interactif avec téléversement de radiographies
-- Visualisation en temps réel de la jauge d'urgence et des délibérations de chaque agent
-
-### 4. Docker
+### 4. Déploiement avec Docker
 ```bash
-docker compose up
+# Démarrage avec Docker Compose
+docker compose up --build
 ```
-Interface accessible sur **[http://localhost:8000](http://localhost:8000)**
+L'interface est accessible sur **[http://localhost:8000](http://localhost:8000)** avec synchronisation des fichiers (*Hot-Reload*).
 
 ---
 
-## Réentraînement des Modèles (Optionnel)
+## 🌐 Endpoints de l'API REST
 
-Téléchargez les datasets Kaggle dans `data/` avant de lancer :
+| Méthode | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/triage` | Inférence complète des 3 agents (multipart/form-data avec image et constantes). |
+| `GET` | `/api/presets` | Retourne les 4 cas cliniques types préenregistrés. |
+| `GET` | `/api/metrics` | Retourne les métriques certifiées dynamiques des 3 agents et la formule de consensus. |
+| `GET` | `/api/history` | Historique des évaluations de triage réalisées. |
+| `GET` | `/api/health` | Vérification de l'état opérationnel du serveur. |
 
+---
+
+## 🔄 Réentraînement des Modèles (Reproductibilité)
+
+Tous les scripts sont 100 % reproductibles :
 ```bash
-# Agent 1 — CNN (recommandé sur GPU ou Google Colab)
-py agent_image/train_cnn.py
+# 1. Réentraîner l'Agent 1 (CNN MobileNetV2)
+python agent_image/train_cnn.py
 
-# Agent 2 — Random Forest
-py agent_clinique/train_rf.py
+# 2. Réentraîner l'Agent 2 (Random Forest Voie 1 - 5-fold OOF)
+python agent_clinique/train_rf.py
 
-# Agent 3 — Régression Logistique OOF
-py agent_decision/train_decision.py
+# 3. Réentraîner l'Agent 3 (Régression Logistique OOF - Consensus SAU)
+python agent_decision/train_decision.py
 ```
 
 ---
 
-## Performances
+## 📚 Datasets Utilisés
 
-| Agent | Métrique principale | Valeur |
-|---|---|---|
-| Agent 1 — CNN | Recall (pneumonie) | **0.985** |
-| Agent 2 — RF | Recall (AVC) | **0.620** |
-| Agent 3 — Système complet | Recall (AVC, test held-out) | **0.620** |
-| Agent 3 — Système complet | ROC-AUC | **0.851** |
-
-> Le recall est la métrique prioritaire en contexte médical d'urgence.  
-> Un faux négatif (AVC non détecté) est plus grave qu'un faux positif (examen supplémentaire).
-
----
-
-## Datasets utilisés
-
-| Dataset | Source | Taille |
-|---|---|---|
-| Chest X-Ray Images (Pneumonia) | [Kaggle](https://www.kaggle.com/paultimothymooney/chest-xray-pneumonia) | 5 216 images |
-| Stroke Prediction Dataset | [Kaggle](https://www.kaggle.com/fedesoriano/stroke-prediction-dataset) | 5 110 patients |
-
----
-
-*Prototype académique — pas un dispositif médical. Résultats non validés cliniquement.*
+1. **Chest X-Ray Images (Pneumonia)** — [Kaggle](https://www.kaggle.com/paultimothymooney/chest-xray-pneumonia) : 5 856 radiographies thoraciques pédiatriques et adultes réparties en classes Normal et Pneumonie.
+2. **Stroke Prediction Dataset** — [Kaggle](https://www.kaggle.com/fedesoriano/stroke-prediction-dataset) : 5 110 observations cliniques (âge, hypertension, cardiopathie, glycémie, IMC, tabagisme) avec diagnostic avéré d'AVC.
