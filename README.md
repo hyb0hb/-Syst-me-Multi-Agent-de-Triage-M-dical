@@ -13,7 +13,7 @@ Ce module s'intègre dans le Système Multi-Agent global de Triage Médical (fus
 
 ---
 
-## 2. Spécifications Techniques (Voie 1 Optimisée)
+## 2. Spécifications Techniques 
 
 * **Algorithme :** `RandomForestClassifier` (Scikit-Learn, 700 arbres régularisés : `max_depth=5`, `min_samples_leaf=10`, `min_samples_split=20`, `max_features=0.5`, `criterion='log_loss'`).
 * **Gestion du déséquilibre de classe :** `class_weight='balanced_subsample'` et seuil de décision gelé par validation croisée **5-Fold OOF** (`threshold = 0.65`).
