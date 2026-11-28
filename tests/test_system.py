@@ -331,7 +331,9 @@ class TestAgent3ThresholdAlignmentAndExperiment(unittest.TestCase):
 
     def test_cli_and_backend_decision_parity(self):
         """Vérifie que demo.py et triage_service.py prennent des décisions strictement cohérentes."""
-        lr = joblib.load(ROOT / "agent_decision" / "model_lr.joblib")
+        exp_lr_path = ROOT / "models" / "experiments" / "agent3_retraining" / "model_lr_oof.joblib"
+        lr_path = exp_lr_path if exp_lr_path.exists() else (ROOT / "agent_decision" / "model_lr.joblib")
+        lr = joblib.load(lr_path)
         if not hasattr(lr, "multi_class"):
             lr.multi_class = "auto"
         for p_img, p_clin in [(0.0033, 0.0059), (0.0033, 0.66), (0.98, 0.46), (0.98, 0.80)]:
@@ -372,17 +374,23 @@ class TestAgent3ThresholdAlignmentAndExperiment(unittest.TestCase):
         self.assertGreater(float(lr_exp.predict_proba([[0.70, 0.70]])[0, 1]), 0.75)
 
     def test_experimental_lr_env_override_leaves_prod_intact(self):
-        """Vérifie le chargement optionnel de l'Agent 3 OOF via MEDTRIAGE_LR_PATH sans modifier la prod."""
+        """Vérifie que main charge OOF par défaut et que MEDTRIAGE_LR_PATH permet de basculer sans altérer prod."""
         from backend.services import model_service
-        exp_lr = ROOT / "models" / "experiments" / "agent3_retraining" / "model_lr_oof.joblib"
+        legacy_lr = ROOT / "agent_decision" / "model_lr.joblib"
         prev = os.environ.get("MEDTRIAGE_LR_PATH")
         try:
-            os.environ["MEDTRIAGE_LR_PATH"] = str(exp_lr)
+            os.environ.pop("MEDTRIAGE_LR_PATH", None)
+            model_service.MODELS["lr"] = None
+            model_service.MODELS_MTIMES.pop("lr", None)
+            _, _, default_lr = model_service.get_models()
+            self.assertAlmostEqual(float(default_lr.coef_[0][0]), 2.7488, places=3)
+            default_met = model_service.load_metrics(force_reload=True)
+            self.assertAlmostEqual(float(default_met["coefficients"]["image"]), 2.7488, places=3)
+            self.assertIn("2.75", default_met["decision_formula"])
+
+            os.environ["MEDTRIAGE_LR_PATH"] = str(legacy_lr)
             _, _, loaded_lr = model_service.get_models()
-            self.assertAlmostEqual(float(loaded_lr.coef_[0][0]), 2.7488, places=3)
-            synced_met = model_service.load_metrics(force_reload=True)
-            self.assertAlmostEqual(float(synced_met["coefficients"]["image"]), 2.7488, places=3)
-            self.assertIn("2.75", synced_met["decision_formula"])
+            self.assertAlmostEqual(float(loaded_lr.coef_[0][0]), 3.1397, places=3)
         finally:
             if prev is None:
                 os.environ.pop("MEDTRIAGE_LR_PATH", None)

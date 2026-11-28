@@ -172,11 +172,13 @@ class TestEvaluationAPIAndRandomHeldOut(unittest.TestCase):
         parsed = json.loads(exp_json.text)
         self.assertEqual(parsed["dataset"]["evaluated_count"], 150)
 
-    def test_index_html_has_separate_evaluation_section(self):
+    def test_index_html_has_demo_workspace_and_updated_safety_rule(self):
         html = self.client.get("/").text
-        self.assertIn('id="evaluationWorkspace"', html)
-        self.assertIn('id="evalAuthForm"', html)
-        self.assertIn('id="btnRunEvaluation"', html)
+        self.assertIn('id="assessmentForm"', html)
+        self.assertIn('id="resultsContainer"', html)
+        self.assertIn('id="formulaChipBox"', html)
+        self.assertIn('align(P_clin)', html)
+        self.assertNotIn('id="evaluationWorkspace"', html)
 
 
 if __name__ == "__main__":

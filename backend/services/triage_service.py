@@ -268,6 +268,9 @@ async def run_full_triage(
         *( ["Tabagisme actif / passé"]  if smoking in ("smokes", "formerly smoked") else []),
     ] or ["Aucune comorbidité majeure déclarée"]
 
+    sign = "+" if intercept >= 0 else "-"
+    formule = f"z = ({coef_img:.2f} × P_img) + ({coef_clin:.2f} × P_clin) {sign} {abs(intercept):.2f}"
+
     result = {
         "triage": {
             "niveau": niveau,
@@ -294,8 +297,8 @@ async def run_full_triage(
                 "auc": round(clin_auc, 3),
             },
             "decision": {
-                "nom": "Agent Décisionnel de Consensus (Régression Logistique)",
-                "formule": f"z = ({coef_img:.2f} × P_img) + ({coef_clin:.2f} × P_clin) + ({intercept:.2f})",
+                "nom": "Agent Décisionnel de Consensus (Régression Logistique OOF)",
+                "formule": formule,
                 "poids_image": round(coef_img, 2),
                 "poids_clinique": round(coef_clin, 2),
                 "biais": round(intercept, 2),

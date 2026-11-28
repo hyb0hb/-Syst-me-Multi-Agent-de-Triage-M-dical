@@ -291,7 +291,7 @@
                                         <h4 class="stage-name">Agent 3 – Décision</h4>
                                         <span class="stage-type-pill pill-green">Triage SAU</span>
                                     </div>
-                                    <p class="stage-sub">Rég. Logistique + Manchester</p>
+                                    <p class="stage-sub">Rég. Logistique OOF + SAU</p>
                                 </div>
                             </div>
                         </div>
@@ -554,7 +554,7 @@
                                             <div class="agent-title-box">
                                                 <span class="agent-bullet purple"></span>
                                                 <span class="agent-name-text">Agent 3 — Consensus (Logistic
-                                                    Regression)</span>
+                                                    Regression OOF)</span>
                                             </div>
                                             <span class="agent-prob-value" id="agent3ScoreText">78.1%</span>
                                         </div>
@@ -570,7 +570,7 @@
                                         <line x1="12" y1="16" x2="12" y2="12" />
                                         <line x1="12" y1="8" x2="12.01" y2="8" />
                                     </svg>
-                                    <span>Emergency safety rule: P_triage = max(P_logit, P_img, P_clin)</span>
+                                    <span>Emergency safety rule: P_triage = max(P_logit, P_img, align(P_clin)) · Seuil RF ≥ 65% → URGENT</span>
                                 </div>
                             </div>
                         </div>
@@ -775,7 +775,7 @@
                     <span class="info-icon-small">ⓘ</span>
                     Research prototype only. Not a clinical device. Results are not a medical diagnosis.
                 </span>
-                <span class="footer-version">MedTriage AI v1.0.0</span>
+                <span class="footer-version">MedTriage AI v2.0</span>
             </footer>
 
         </main>

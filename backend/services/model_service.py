@@ -7,7 +7,9 @@ from typing import Any, Dict, Tuple
 import joblib
 import numpy as np
 
-from backend.config import METRICS_PATHS, MODEL_PATHS
+from backend.config import METRICS_PATHS, MODEL_PATHS, ROOT_DIR
+
+DEFAULT_OOF_LR_PATH = ROOT_DIR / "models" / "experiments" / "agent3_retraining" / "model_lr_oof.joblib"
 
 # Cache mémoire des modèles et des métriques avec suivi des horodatages de modification
 MODELS = {
@@ -114,9 +116,12 @@ def load_metrics(force_reload: bool = False) -> Dict[str, Any]:
             if key not in METRICS_CACHE:
                 METRICS_CACHE[key] = {}
 
-    # Si MEDTRIAGE_LR_PATH pointe vers le modèle expérimental OOF (Version C), synchroniser ses métriques/poids
-    if env_lr:
-        exp_dir = Path(env_lr).resolve().parent
+    # Par défaut sur main (version-2), utiliser le modèle OOF s'il existe, sinon fallback prod
+    resolved_lr_path = Path(env_lr) if env_lr else (DEFAULT_OOF_LR_PATH if DEFAULT_OOF_LR_PATH.exists() else MODEL_PATHS["lr"])
+    use_oof_metrics = resolved_lr_path.resolve() == DEFAULT_OOF_LR_PATH.resolve() if DEFAULT_OOF_LR_PATH.exists() else False
+
+    if use_oof_metrics or (env_lr and (Path(env_lr).resolve().parent / "training_config.json").exists()):
+        exp_dir = resolved_lr_path.resolve().parent
         cfg_path = exp_dir / "training_config.json"
         cmp_path = exp_dir / "comparison_metrics.json"
         if cfg_path.exists() and cmp_path.exists():
@@ -211,9 +216,14 @@ def get_models() -> Tuple[object, object, object]:
             MODELS["rf"] = joblib.load(rf_path)
             MODELS_MTIMES["rf"] = mtime
 
-    # 3. Modèle Régression Logistique (Agent 3 Consensus — surcharge optionnelle via MEDTRIAGE_LR_PATH)
+    # 3. Modèle Régression Logistique (Agent 3 Consensus — OOF par défaut, surcharge via MEDTRIAGE_LR_PATH)
     env_lr = os.environ.get("MEDTRIAGE_LR_PATH")
-    lr_path = Path(env_lr) if env_lr else MODEL_PATHS["lr"]
+    if env_lr:
+        lr_path = Path(env_lr)
+    elif DEFAULT_OOF_LR_PATH.exists():
+        lr_path = DEFAULT_OOF_LR_PATH
+    else:
+        lr_path = MODEL_PATHS["lr"]
     if lr_path.exists():
         mtime = (str(lr_path), lr_path.stat().st_mtime)
         if MODELS["lr"] is None or MODELS_MTIMES.get("lr") != mtime:

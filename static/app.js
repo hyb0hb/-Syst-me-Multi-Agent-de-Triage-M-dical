@@ -148,9 +148,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         formulaChipBox.innerHTML = `<code>${data.decision_formula}</code>`;
                     } else if (data.decision?.coefficients) {
                         const c = data.decision.coefficients;
-                        const cImg = parseFloat(c.image ?? 2.99).toFixed(2);
-                        const cClin = parseFloat(c.clinique ?? 4.24).toFixed(2);
-                        const cInt = parseFloat(c.intercept ?? -3.31);
+                        const cImg = parseFloat(c.image ?? 2.75).toFixed(2);
+                        const cClin = parseFloat(c.clinique ?? 3.51).toFixed(2);
+                        const cInt = parseFloat(c.intercept ?? -2.91);
                         const sign = cInt >= 0 ? "+" : "-";
                         formulaChipBox.innerHTML = `<code>z = (${cImg} × P_img) + (${cClin} × P_clin) ${sign} ${Math.abs(cInt).toFixed(2)}</code>`;
                     }
@@ -575,8 +575,9 @@ document.addEventListener("DOMContentLoaded", () => {
         agent2Bar.className = `progress-bar-fill ${pClin >= rfThreshPct ? "red" : (pClin >= 40 ? "amber" : "teal")}`;
         agent2StatusLabel.textContent = agents.clinique.statut;
 
-        // Agent 3 Consensus
-        agent3ScoreText.textContent = `${triage.score_urgence}%`;
+        // Agent 3 Consensus (score composite P_logit issu de la formule, avant règle de précaution P_triage)
+        const pLogit = triage.score_composite_logit ?? triage.score_urgence;
+        agent3ScoreText.textContent = `${pLogit}%`;
         formulaChipBox.innerHTML = `<code>${agents.decision.formule}</code>`;
     }
 
