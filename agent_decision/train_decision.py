@@ -148,13 +148,27 @@ def main():
     clin_test_df = pd.DataFrame({"proba": rf_model.predict_proba(X_test)[:, 1], "label": y_test.values})
     X_test_lr, y_test_lr = make_balanced_quadrant_pairs(img_b, clin_test_df, 1000, np.random.default_rng(args.seed))
 
+    p_img_test = X_test_lr[:, 0]
+    p_clin_test = X_test_lr[:, 1]
     p_comp = lr_model.predict_proba(X_test_lr)[:, 1]
-    auc = float(roc_auc_score(y_test_lr, p_comp))
-    ap = float(average_precision_score(y_test_lr, p_comp))
-    brier = float(brier_score_loss(y_test_lr, p_comp))
-    rep = classification_report(
+
+    # Métriques brutes de la régression seule
+    auc_raw = float(roc_auc_score(y_test_lr, p_comp))
+    ap_raw = float(average_precision_score(y_test_lr, p_comp))
+    brier_raw = float(brier_score_loss(y_test_lr, p_comp))
+
+    # Métriques du système complet déployé en production (Principe de précaution SAU, seuil 0.70)
+    from backend.services.triage_service import align_clinical_risk
+
+    p_clin_aligned = np.array([align_clinical_risk(pc, 0.65) for pc in p_clin_test])
+    p_final = np.maximum(p_comp, np.maximum(p_img_test, p_clin_aligned))
+
+    auc_final = float(roc_auc_score(y_test_lr, p_final))
+    ap_final = float(average_precision_score(y_test_lr, p_final))
+    brier_final = float(brier_score_loss(y_test_lr, p_final))
+    rep_final = classification_report(
         y_test_lr,
-        (p_comp >= 0.50).astype(int),
+        (p_final >= 0.70).astype(int),
         target_names=["Non urgent", "Urgent"],
         output_dict=True,
         zero_division=0,
@@ -169,20 +183,25 @@ def main():
     formula_str = f"z = ({coef_img:.2f} × P_img) + ({coef_clin:.2f} × P_clin) {sign} {abs(intercept):.2f}"
 
     metrics_data = {
-        "roc_auc": round(auc, 4),
-        "pr_auc": round(ap, 4),
-        "brier_score": round(brier, 4),
+        "roc_auc": round(auc_final, 4),
+        "pr_auc": round(ap_final, 4),
+        "brier_score": round(brier_final, 4),
         "coefficients": {
             "image": coef_img,
             "clinique": coef_clin,
             "intercept": intercept,
         },
         "decision_formula": formula_str,
-        "report": rep,
+        "report": rep_final,
+        "raw_logistic_regression_0.50": {
+            "roc_auc": round(auc_raw, 4),
+            "pr_auc": round(ap_raw, 4),
+            "brier_score": round(brier_raw, 4),
+        },
         "deployed_rule_max_0.70": {
             "threshold": 0.70,
-            "roc_auc_pfinal": round(auc, 4),
-            "pr_auc_pfinal": round(ap, 4),
+            "roc_auc_pfinal": round(auc_final, 4),
+            "pr_auc_pfinal": round(ap_final, 4),
         },
         "training": {
             "method": "5-Fold Out-of-Fold (OOF) Late Stacking",
@@ -193,7 +212,8 @@ def main():
     metrics_dest.write_text(json.dumps(metrics_data, indent=2), encoding="utf-8")
     print(f"Modèle sauvegardé dans : {model_dest}")
     print(f"Métriques exportées dans : {metrics_dest}")
-    print(f"ROC-AUC Test : {auc:.4f} | PR-AUC : {ap:.4f} | Brier : {brier:.4f}")
+    print(f"ROC-AUC Déployé (SAU) : {auc_final:.4f} | PR-AUC : {ap_final:.4f} | Rappel Urgent : {rep_final['Urgent']['recall']*100:.2f}%")
+    print(f"ROC-AUC Brut (sans SAU) : {auc_raw:.4f} | PR-AUC : {ap_raw:.4f}")
 
 
 if __name__ == "__main__":

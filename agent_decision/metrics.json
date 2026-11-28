@@ -1,44 +1,49 @@
 {
-  "roc_auc": 0.8455,
-  "pr_auc": 0.9361,
-  "brier_score": 0.1637,
+  "roc_auc": 0.8768,
+  "pr_auc": 0.9555,
+  "brier_score": 0.1256,
   "coefficients": {
     "image": 2.7488099884854864,
-    "clinique": 3.50816553464045,
+    "clinique": 3.5081655346404492,
     "intercept": -2.9052785482711054
   },
   "decision_formula": "z = (2.75 \u00d7 P_img) + (3.51 \u00d7 P_clin) - 2.91",
   "report": {
     "Non urgent": {
-      "precision": 0.44991511035653653,
-      "recall": 0.795,
-      "f1-score": 0.5746295627032888,
+      "precision": 0.7146042363433668,
+      "recall": 0.641,
+      "f1-score": 0.6758039008961518,
       "support": 1000.0
     },
     "Urgent": {
-      "precision": 0.9081952530228392,
-      "recall": 0.676,
-      "f1-score": 0.775081215364036,
+      "precision": 0.8843055107960038,
+      "recall": 0.9146666666666666,
+      "f1-score": 0.8992298869408487,
       "support": 3000.0
     },
-    "accuracy": 0.70575,
+    "accuracy": 0.84625,
     "macro avg": {
-      "precision": 0.6790551816896879,
-      "recall": 0.7355,
-      "f1-score": 0.6748553890336624,
+      "precision": 0.7994548735696854,
+      "recall": 0.7778333333333334,
+      "f1-score": 0.7875168939185002,
       "support": 4000.0
     },
     "weighted avg": {
-      "precision": 0.7936252173562636,
-      "recall": 0.70575,
-      "f1-score": 0.7249683021988492,
+      "precision": 0.8418801921828446,
+      "recall": 0.84625,
+      "f1-score": 0.8433733904296745,
       "support": 4000.0
     }
   },
+  "raw_logistic_regression_0.50": {
+    "roc_auc": 0.8455,
+    "pr_auc": 0.9361,
+    "brier_score": 0.1637
+  },
   "deployed_rule_max_0.70": {
     "threshold": 0.7,
-    "roc_auc_pfinal": 0.8455,
-    "pr_auc_pfinal": 0.9361
+    "roc_auc_pfinal": 0.8768,
+    "pr_auc_pfinal": 0.9555
   },
   "training": {
     "method": "5-Fold Out-of-Fold (OOF) Late Stacking",
