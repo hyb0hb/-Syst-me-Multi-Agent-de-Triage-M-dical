@@ -24,8 +24,12 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import StratifiedKFold, cross_val_predict, train_test_split
 
+import sys
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from agent_clinique.train_rf import FEATURES, build_pipeline
 
@@ -148,12 +152,21 @@ def main():
     auc = float(roc_auc_score(y_test_lr, p_comp))
     ap = float(average_precision_score(y_test_lr, p_comp))
     brier = float(brier_score_loss(y_test_lr, p_comp))
-    rep = classification_report(y_test_lr, (p_comp >= 0.50).astype(int), output_dict=True, zero_division=0)
+    rep = classification_report(
+        y_test_lr,
+        (p_comp >= 0.50).astype(int),
+        target_names=["Non urgent", "Urgent"],
+        output_dict=True,
+        zero_division=0,
+    )
 
     # Sauvegarde des modèles et métriques
     model_dest = HERE / "model_lr.joblib"
     metrics_dest = HERE / "metrics.json"
     joblib.dump(lr_model, model_dest)
+
+    sign = "+" if intercept >= 0 else "-"
+    formula_str = f"z = ({coef_img:.2f} × P_img) + ({coef_clin:.2f} × P_clin) {sign} {abs(intercept):.2f}"
 
     metrics_data = {
         "roc_auc": round(auc, 4),
@@ -164,6 +177,7 @@ def main():
             "clinique": coef_clin,
             "intercept": intercept,
         },
+        "decision_formula": formula_str,
         "report": rep,
         "deployed_rule_max_0.70": {
             "threshold": 0.70,

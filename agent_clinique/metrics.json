@@ -13,7 +13,7 @@
   "calibration": {
     "brier_score": 0.14167918749656702,
     "intercept": -2.4832656924699297,
-    "slope": 0.8636141243166257
+    "slope": 0.863614124316626
   },
   "model_type": "RandomForestClassifier",
   "cahier_des_charges": "100% Conforme",
